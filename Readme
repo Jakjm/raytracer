@@ -1,3 +1,6 @@
+This is a raytracer I worked on for an assignment. The code is written in pure C. 
+Sample input files and the generated output files are included in the repository. 
+
 To compile the program, use the following command:
 
 make
@@ -5,7 +8,9 @@ make
 In a directory containing the source code and the makefile included with the repository. 
 
 To run the program after using make, use the following command: 
+
 ./raytracer.exe input-file
+
 where input-file is a file containing the proper format to describe a scene. 
 
 File format is as follows - please use the other text files provided as a reference.
