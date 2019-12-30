@@ -1,0 +1,29 @@
+To compile the program, use the following command:
+
+make
+
+In a directory containing the source code and the makefile included with the repository. 
+
+To run the program after using make, use the following command: 
+./raytracer.exe input-file
+where input-file is a file containing the proper format to describe a scene. 
+
+File format is as follows - please use the other text files provided as a reference.
+Color, lighting coefficients and intensity values are between 0.0 and 1.0
+Res is the expected resolution of the output image. 
+
+Input file syntax: 
+
+NEAR <n>
+LEFT <l>
+RIGHT <r>
+BOTTOM <b>
+TOP <t>
+RES <width> <height>
+SPHERE <name> <pos x> <pos y> <pos z> <scale x> <scale y> <scale z> <r> <g> <b> <K ambient coefficient> <K diffuse coefficient> <K specular coefficient> <K reflected coefficient> <n brightness>
+		(Up to 14 other spheres...)
+LIGHT <name> <pos x> <pos y> <pos z> <Ir - red light intensity> <Ig - green light intensity> <Ib - blue light intensity>
+		(Up to 9 other lights...)
+BACK <r> <g > <b>
+AMBIENT <Ir red ambient light intensity> <Ig green ambient light intensity> <Ib blue ambient light intensity>
+OUTPUT <output filename>
