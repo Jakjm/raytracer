@@ -264,7 +264,7 @@ int parse2(char *fileName){
 		//Read output filename. 
 		else if(strcmp(input,"OUTPUT") == 0 && readOutput == 0){
 			outputFile = malloc(sizeof(char) * 50);
-			result = fscanf(file," %s ",outputFile);
+			result = fscanf(file," %49s ",outputFile);
 			if(result != 1)return -1;
 			readOutput = 1;
 		}
