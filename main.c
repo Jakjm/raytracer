@@ -69,7 +69,7 @@ sphere *readSphere(FILE *fp){
 	oval->name = malloc(sizeof(char) * 30);
 
 	//Reading the name, position and scale. Breaking if there is a read error.
-	result = fscanf(fp, " %s %lf %lf %lf %lf %lf %lf ", oval->name, &oval->posX, &oval->posY, &oval->posZ, &oval->scaleX, &oval->scaleY, &oval->scaleZ);
+	result = fscanf(fp, " %29s %lf %lf %lf %lf %lf %lf ", oval->name, &oval->posX, &oval->posY, &oval->posZ, &oval->scaleX, &oval->scaleY, &oval->scaleZ);
 	if(result != 7)return NULL;
 	
 	//Reading the color and the lighting parameters. Breaking if there is a read error. 
@@ -99,7 +99,7 @@ light *readLight(FILE *fp){
 	lamp->name = malloc(sizeof(char) * 30);
 
 	//Reading the name and the position of the light. Breaking if reading fails. 
-	result = fscanf(fp," %s %lf %lf %lf ",lamp->name,&lamp->posX,&lamp->posY,&lamp->posZ);
+	result = fscanf(fp," %29s %lf %lf %lf ",lamp->name,&lamp->posX,&lamp->posY,&lamp->posZ);
 	if(result != 4)return NULL;
 
 	//Reading the intensity values of the light, and breaking if there is an error with the read. 
@@ -167,7 +167,7 @@ void printParsedFile(char* fileName){
 //Second parser, if only to comply with the 'testParser' test case.
 //Reads the necessary inputs from the file specified by the string.
 //The inputs are stored in global variables. 
-//
+
 //Returns -1 if the parse was unsucessful.
 int parse2(char *fileName){
 	//Flags for whether the viewing planes have been parsed or not.
@@ -189,7 +189,7 @@ int parse2(char *fileName){
 	
 	int result;
 	char *input = malloc(sizeof(char) * 30);
-	result = fscanf(file," %s ",input);
+	result = fscanf(file," %29s ",input);
 	while(result == 1){
 		//Read the near plane. 
 		if(strcmp(input,"NEAR") == 0 && readNear == 0){
