@@ -272,7 +272,7 @@ int parse2(char *fileName){
 		else{
 			return -1;
 		}
-		result = fscanf(file," %s ",input);
+		result = fscanf(file," %29s ",input);
 	}
 
 	//Cleaning up the extra memory used within this function
