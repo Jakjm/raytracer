@@ -38,7 +38,6 @@ double r, g, b;
 //Ambient light
 double aR, aG, aB;
 char *outputFile;
-int **imageArray;
 char *byteBuffer;
 
 //Defining a structure for spheres. 
@@ -293,43 +292,17 @@ int convertIntColor(double red, double green, double blue){
 
 //Function to create the image array for the ray tracer. 
 void createImageArray(){
-	int row, col;
-	imageArray = malloc(sizeof(int *) * rows);
-	for(row = 0;row < rows;++row){
-		imageArray[row] = malloc(sizeof(int) * cols); 
-	}
-}
-//Function for dumping the completed image into a byte buffer.
-//the 2D integer array for the image is freed. 
-char *convertImageToChars(){
-	char* byteBuffer = malloc(sizeof(char) * (rows * cols * 3));
-	int x, y;
-	int index;
-	int color;
-	//Buffering the image into a buffer array of 24 bit colors. 
-	for(y = 0;y < rows;++y){
-		for(x = 0;x < cols;++x){
-			index = y * cols * 3 + x * 3;
-			color = imageArray[y][x];
-			byteBuffer[index] = (color >> 16) % 256; //Red
-			byteBuffer[index + 1] = (color >> 8) % 256; //Green 
-			byteBuffer[index + 2] = color % 256; //Blue
-		}
-		//Freeing the current row of the image buffer since we don't need it anymore.
-		free(imageArray[y]);
-	}
-	//Freeing the image array pointer since we're done with it. 
-	free(imageArray);
-	return byteBuffer;
+	byteBuffer = malloc(sizeof(char) * (rows * cols * 3));
 }
 //Function to save the image
 //Copied from the website. 
 void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
 	FILE *fp;
 	const int maxVal=255; 
-  
+  	char buf [8192];
 	if(verbose)printf("Saving image %s: %d x %d\n", fname,Width,Height);
 	fp = fopen(fname,"wb");
+	setbuf(fp,buf);
 	if(!fp){
 		printf("Unable to open file '%s'\n",fname);
 		return;
@@ -341,6 +314,7 @@ void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
 	for(int j = 0; j < Height; j++) {
 		fwrite(&pixels[j*Width*3], 3,Width,fp);
 	}
+	fflush(fp);
 	fclose(fp);
 }
 //Gets the transformation matrix for the current sphere. 
@@ -679,7 +653,10 @@ void *computePixelThread(void *encoding){
 	int x, y;
 	double rayX, rayY, rayZ;
 	double cR, cG, cB;
+
+	char *buffer = byteBuffer + (rowStart * cols * 3);
 	eye = vec4(0,0,0);
+	ray = vec4(0,0,0);
 	/**Render the pixels that have been assigned to this thread.*/
 	for(y = rowStart; y < rowEnd; ++y){
 		for(x = 0;x < cols; ++x){
@@ -687,9 +664,8 @@ void *computePixelThread(void *encoding){
 			rayX = (x + zeroX) * planeX;
 			rayY = (y + zeroY) * planeY;
 			rayZ = -near;
-			ray = vec4(rayX,rayY,rayZ);
-			
-			eye = point4(0,0,0);
+			setVec4(ray,rayX,rayY,rayZ);
+			setPoint4(eye,0.0,0.0,0.0);
 			
 			//Computing the pixel color.
 			traceRay(ray,eye,NUM_BOUNCES,&cR,&cG,&cB);
@@ -699,18 +675,18 @@ void *computePixelThread(void *encoding){
 			if(cG > 1.0)cG = 1.0;
 			if(cB > 1.0)cB = 1.0;
 
-			imageArray[y][x] = convertIntColor(cR,cG,cB);
-
-			freeMatrix(eye);
-			eye = NULL;
-			freeMatrix(ray);
-			ray = NULL;
+			/*Put the colour for this pixel in the buffer.*/
+			*buffer = (unsigned char)(cR * 255);
+			++buffer;
+			*buffer = (unsigned char)(cG * 255);
+			++buffer;
+			*buffer = (unsigned char)(cB * 255);
+			++buffer;
 		}
 	}
+	freeMatrix(eye);
+	freeMatrix(ray);
 	return NULL;
-}
-void generateImage(int threadCount, char *outputFile){
-	
 }
 void computePixels2(int threadCount){
 	int thread;
@@ -790,11 +766,10 @@ int main(int argc,char **argv){
 
 	createImageArray();
 	computePixels2(numThreads);
-	
 	//Freeing the lists of lights and spheres. 
 	freeLists();
+	
 	//Saving the image file:
-	byteBuffer = convertImageToChars();
 	save_image(cols,rows,outputFile,byteBuffer);
 
 	//Freeing the remaining used resources. 

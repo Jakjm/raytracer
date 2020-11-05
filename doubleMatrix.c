@@ -88,11 +88,25 @@ Matrix *vec4(double x,double y,double z){
 	n->cols = 1;
 	return n;
 }
+/*Sets the given 4x1 matrix into a matrix representing a 3 dimensional vector*/
+void setVec4(Matrix *n, double x,double y,double z){
+	n->matrix[0][0] = x;
+	n->matrix[1][0] = y;
+	n->matrix[2][0] = z;
+	n->matrix[3][0] = 0;
+}
 //4 Dimensional point creation method. 
 Matrix *point4(double x,double y,double z){
 	Matrix *m = vec4(x,y,z);
 	m->matrix[3][0] = 1;
 	return m;
+}
+/*Sets the given 4x1 matrix into a matrix representing a 3 dimensional point*/
+void setPoint4(Matrix *n,double x,double y,double z){
+	n->matrix[0][0] = x;
+	n->matrix[1][0] = y;
+	n->matrix[2][0] = z;
+	n->matrix[3][0] = 1;
 }
 //Dot product calculation,
 //Where both of the matricies passed are vectors. 

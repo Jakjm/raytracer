@@ -31,6 +31,10 @@ extern inline Matrix *vec4(double x,double y,double z);
 extern inline Matrix *identityMatrix(int size);
 extern inline Matrix *getScalarMultipleMatrix(Matrix *,double);
 
+/**Set a vector to the following dimensions*/
+void setVec4(Matrix *,double, double, double);
+void setPoint4(Matrix *,double, double, double);
+
 //Affine transformation matricies. 
 extern inline Matrix *scaleMatrix(double sX,double sY,double sZ);
 extern inline Matrix *translationMatrix(double,double,double);
