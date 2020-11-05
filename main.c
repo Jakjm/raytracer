@@ -156,14 +156,14 @@ void printParsedFile(char* fileName){
 	printf("Back Color: (%.1lf %.1lf %.1lf)\n",r,g,b); //Color of the background
 	printf("Ambient Light: red: %.1lf green: %.1lf blue: %.1lf\n",aR,aG,aB); //Ambient light
 	printf("\nOutput File: %s\n\n",outputFile); //Name of the output file.
-	printf("~~~~~ Completed reading file ~~~~~\n\n");
+	printf("~~~~~ Completed reading file ~~~~~\n");
 }
 //Second parser, if only to comply with the 'testParser' test case.
 //Reads the necessary inputs from the file specified by the string.
 //The inputs are stored in global variables. 
 
 //Returns -1 if the parse was unsucessful.
-int parse2(char *fileName){
+int parseFile(char *fileName){
 	//Flags for whether the viewing planes have been parsed or not.
 	int readNear, readLeft,readRight,readTop,readBottom;
 	readNear = 0;readLeft = 0;readRight = 0;readTop = 0;readBottom = 0;
@@ -717,10 +717,12 @@ void computePixels2(int threadCount){
 void freeLists(){
 	int i;
 	for(i = 0;i < numSpheres;++i){
+		free(sphereList[i]->name);
 		free(sphereList[i]);
 	}
 	free(sphereList);
 	for(i = 0;i < numLights;++i){
+		free(lightList[i]->name);
 		free(lightList[i]);
 	}
 	free(lightList);
@@ -755,7 +757,7 @@ int main(int argc,char **argv){
 		else{
 			filename = arg;
 			/**Check if the argument is a correct filename.*/
-			int result = parse2(filename);
+			int result = parseFile(filename);
 			if(result == -1){
 				fprintf(stderr,"::Parsing the file failed.\n::Please ensure you have provided a valid txt file in the format specified by the assignment.\n");
 				return 1;
