@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+/**Updating to allow the use of multithreading.*/
+#include <pthread.h>
 #include "doubleMatrix.h"
 #include "doubleMatrix.c"
 
@@ -289,9 +291,7 @@ int parse2(char *fileName){
 }
 //Function to convert rgb floats into an rgb color. 
 int convertIntColor(double red, double green, double blue){
-	if(red > 1.0 || green > 1.0 || blue > 1.0){
-		printf("COLOR OVERFLOW %lf %lf %lf\n",red,green,blue);
-	}
+	if(red > 1.0 || green > 1.0 || blue > 1.0)printf("COLOR OVERFLOW %lf %lf %lf\n",red,green,blue);
 	int color = (int)(red * 255) << 16;
        	color += (int)(green * 255) << 8;
 	color += (int)(blue * 255); 
@@ -669,6 +669,81 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 	}
 	return t;
 }
+/**This method is used to handle the raytracing for a particular portion of the scene.*/
+void *computePixelThread(void *encoding){
+	long encodedRowParms = (long)encoding;
+	long mask = 0XFFFFFFFF;
+	int rowStart = encodedRowParms >> 32;
+	int rowEnd = (encodedRowParms & mask);
+
+	/*The location of pixel 0,0 in space.*/
+	double zeroX = (-cols / 2.0) + 0.5;
+	double zeroY = (-rows / 2.0) + 0.5;
+
+	double planeX = (right - left) / cols;
+	double planeY = (bottom - top) / rows;
+
+	Matrix *eye;
+	Matrix *ray;
+
+	int x, y;
+	double rayX, rayY, rayZ;
+	eye = vec4(0,0,0);
+	/**Render the pixels that have been assigned to this thread.*/
+	for(y = rowStart; y < rowEnd; ++y){
+		for(x = 0;x < cols; ++x){
+			/*Calculate the ray for the particular pixel we're rendering.*/
+			rayX = (x + zeroX) * planeX;
+			rayY = (y + zeroY) * planeY;
+			rayZ = -near;
+			ray = vec4(rayX,rayY,rayZ);
+			
+			eye = point4(0,0,0);
+			
+			//Computing the pixel color.
+			color *pxColor = traceRay(ray,eye,NUM_BOUNCES);
+			
+			//Clamping the color, if the color has exceeded one. 
+			if(pxColor->r > 1)pxColor->r = 1.0;
+			if(pxColor->g > 1)pxColor->g = 1;
+			if(pxColor->b > 1)pxColor->b = 1;
+
+			imageArray[y][x] = convertIntColor(pxColor->r,pxColor->g,pxColor->b);
+
+			freeMatrix(eye);
+			eye = NULL;
+			freeMatrix(ray);
+			ray = NULL;
+			free(pxColor);
+			pxColor = NULL;
+		}
+	}
+	return NULL;
+}
+void computePixels2(int threadCount){
+	int thread;
+	/*The i-th thread renders rowStart to rowEnd (not including the row-endth row).*/
+	int rowStart, rowEnd;
+	/*A particular thread will render rowHeight * cols pixels.*/ 
+	int rowHeight = rows / threadCount;
+	long encoding;
+	pthread_t threads[threadCount];
+	/**Default to 4 if threadCount invalid*/
+	if(threadCount < 1 || threadCount > 16)threadCount = 4;
+	
+	for(thread = 0;thread < threadCount;++thread){
+		rowStart = thread * rowHeight;
+		rowEnd = rowStart + rowHeight;
+		encoding = rowStart;
+		encoding = encoding << 32;
+		encoding += rowEnd;
+		pthread_create(&threads[thread],NULL,computePixelThread,encoding);
+	}
+	/*Wait to join each thread.*/
+	for(int thread = 0;thread < threadCount;++thread){
+		pthread_join(threads[thread],NULL);
+	}
+}
 //Starting to compute the color of each pixel,
 //and placing that pixel in the array of pixels. 
 void computePixels(){
@@ -739,35 +814,46 @@ void freeLists(){
 }
 //Main function of the program. 
 int main(int argc,char **argv){
+	char **endArgs = argv + argc;
+	char *arg;
+
+	char *filename = NULL;
+	int numThreads = 1;
+
 	//Checking if the program lacks arguments. 
 	if(argc < 2){
-		printf("Please retry running the program with the correct number of arguments\n");
-		return 1;
-	}
-	
-	//If the parsing option appears first, swap the command line arguments so that the actual file appears first. 
-	if(argc > 2 && strcmp(argv[1],"-v") == 0){
-		char *swap = argv[1];
-		argv[1] = argv[2];
-		argv[2] = swap;
-	}
-
-	//Parsing the file and checking for success. 
-	int result = parse2(argv[1]);
-	//Stop program with an error if the parsing failed. 
-	if(result == -1){
-		fprintf(stderr,"::Parsing the file failed.\n::Please ensure you have provided a valid txt file in the format specified by the assignment.\n");
+		fprintf(stderr,"Please retry running the program with the correct number of arguments\n");
 		return 1;
 	}
 
-	//Printing the output of the parser, if requested. 
-	if(argc > 2 && (strcmp(argv[2],"1") == 0 || strcmp(argv[2],"-v") == 0)){
-		verbose = 1;
-		printParsedFile(argv[1]);
+	int i;
+	for(i = 1;i < argc;++i){
+		arg = argv[i];
+		/**If argument matches filename*/
+		if(strcmp(arg,"-v") == 0){
+			verbose = 1;
+		}
+		else if(sscanf(arg,"-t%d",&numThreads) == 1){
+			if(numThreads < 0 || numThreads > 16){
+				fprintf(stderr,"Incorrect number of threads\n");
+				return 1;
+			}
+		}
+		else{
+			filename = arg;
+			/**Check if the argument is a correct filename.*/
+			int result = parse2(filename);
+			if(result == -1){
+				fprintf(stderr,"::Parsing the file failed.\n::Please ensure you have provided a valid txt file in the format specified by the assignment.\n");
+				return 1;
+			}
+			if(verbose)printParsedFile(filename);
+		}
 	}
+
 	createImageArray();
-
-	computePixels();
+	computePixels2(numThreads);
+	
 	//Freeing the lists of lights and spheres. 
 	freeLists();
 	//Saving the image file:
