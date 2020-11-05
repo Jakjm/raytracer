@@ -41,13 +41,6 @@ char *outputFile;
 int **imageArray;
 char *byteBuffer;
 
-//Defining a structure for color. 
-typedef struct color{
-	double r;
-	double g;
-	double b;
-} color;
-
 //Defining a structure for spheres. 
 typedef struct sphere{
 	//The name of the sphere. 
@@ -383,12 +376,8 @@ int existsCollision(Matrix *origin,Matrix *ray){
 //s is the sphere. 
 //origin is the observing point - but this changes as rays are traced.
 //returns the sum of all the light colors. 
-color *computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s){
-	//Initializing color to zero.
-	color *c = malloc(sizeof(color));
-	c->r = 0.0;
-	c->g = 0.0;
-	c->b = 0.0;
+void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s, double *red,double *green,double *blue){
+	double cR = 0.0,cG = 0.0,cB = 0.0;
 
 	light *l;
 
@@ -466,9 +455,9 @@ color *computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *
 					specG = 0;
 					specB = 0;
 				}
-				c->r += (difR + specR);
-				c->g += (difG + specG);
-				c->b += (difB + specB);
+				cR += (difR + specR);
+				cG += (difG + specG);
+				cB += (difB + specB);
 				
 				freeMatrix(projection);
 				freeMatrix(viewRay);
@@ -478,17 +467,17 @@ color *computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *
 		freeMatrix(ray);
 		freeMatrix(lightPoint);
 	}
-	
-	return c;
+	*red = cR;
+	*green = cG;
+	*blue = cB;
 }
 //Traces the ray to the closest sphere, if possible, then computes the color.
-color *traceRay(Matrix *ray,Matrix *origin,int bounceCount){
-	color *c = malloc(sizeof(color));
+void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *green,double *blue){
+	double cR, cG, cB;
 	sphere *s = NULL;
 	double t;
 	double lowestT = 2020202020202020;
 	int col;
-	color *lightColor;
 
 	//Computing the closest sphere intersection with the ray. 
 	double minimum = MINIMUM_T;
@@ -517,10 +506,11 @@ color *traceRay(Matrix *ray,Matrix *origin,int bounceCount){
 		inPlaceSum(colPoint,origin);
 		Matrix *rayPrime = NULL;
 		Matrix *originPrime = NULL;
+		double lightR, lightG, lightB;
 		//Computing the ambient light.
-		c->r = s->kAmb * aR * s->r;
-		c->g = s->kAmb * aG * s->g;
-		c->b = s->kAmb * aB * s->b;	
+		cR = s->kAmb * aR * s->r;
+		cG = s->kAmb * aG * s->g;
+		cB = s->kAmb * aB * s->b;	
 		
 		//Computing the inverse matrix of the sphere's transformation matrix. 
 		inverse = getSphereMatrix(s);
@@ -551,17 +541,17 @@ color *traceRay(Matrix *ray,Matrix *origin,int bounceCount){
 		}
 
 		//Light collision methods go here.
-		lightColor = computeLightColor(colPoint,origin,normal,s);
-		c->r += lightColor->r;
-		c->g += lightColor->g;
-		c->b += lightColor->b;
+		computeLightColor(colPoint,origin,normal,s,&lightR,&lightG,&lightB);
+		cR += lightR;
+		cG += lightG;
+		cB += lightB;
 		
 
 		//If the ray should be reflected, reflect it. Here goes nothing.
 		if(bounceCount > 0 && s->kR > 0){
+			double refR, refG, refB;
 			Matrix *reflectedRay;
 			Matrix *projection;
-			color *reflectedColor;
 			--bounceCount;
 
 			//calculating the projection of the ray onto the normal. 
@@ -571,14 +561,13 @@ color *traceRay(Matrix *ray,Matrix *origin,int bounceCount){
 			reflectedRay = matrixCopy(ray);
 			inPlaceDifference(reflectedRay,projection);
 
-			reflectedColor = traceRay(reflectedRay,colPoint,bounceCount);
-			c->r += (s->kR * reflectedColor->r);
-			c->g += (s->kR * reflectedColor->g);
-			c->b += (s->kR * reflectedColor->b);
+			traceRay(reflectedRay,colPoint,bounceCount,&refR,&refG,&refB);
+			cR += (s->kR * refR);
+			cG += (s->kR * refG);
+			cB += (s->kR * refB);
 			
 			//Freeing the resources used here. 
 			freeMatrix(projection);
-			free(reflectedColor);
 			freeMatrix(reflectedRay);
 		}
 
@@ -586,7 +575,6 @@ color *traceRay(Matrix *ray,Matrix *origin,int bounceCount){
 		freeMatrix(rayPrime);
 		freeMatrix(originPrime);
 		freeMatrix(inverseTranspose);
-		free(lightColor);
 		freeMatrix(colPoint);
 		freeMatrix(normal);
 	}
@@ -594,18 +582,20 @@ color *traceRay(Matrix *ray,Matrix *origin,int bounceCount){
 	else{
 		//If this is a bounced ray, return black if there is no collision.
 		if(bounceCount < NUM_BOUNCES){
-			c->r = 0;
-			c->g = 0;
-			c->b = 0;
+			cR = 0.0;
+			cG = 0.0;
+			cB = 0.0;
 		}
 		//Otherwise, return the background color. 
 		else{
-			c->r = r;
-			c->g = g;
-			c->b = b;
+			cR = r;
+			cG = g;
+			cB = b;
 		}
 	}
-	return c;
+	*red = cR;
+	*green = cG;
+	*blue = cB;
 }
 //Traces the given ray to the given sphere,
 //from the given starting point. 
@@ -688,6 +678,7 @@ void *computePixelThread(void *encoding){
 
 	int x, y;
 	double rayX, rayY, rayZ;
+	double cR, cG, cB;
 	eye = vec4(0,0,0);
 	/**Render the pixels that have been assigned to this thread.*/
 	for(y = rowStart; y < rowEnd; ++y){
@@ -701,24 +692,25 @@ void *computePixelThread(void *encoding){
 			eye = point4(0,0,0);
 			
 			//Computing the pixel color.
-			color *pxColor = traceRay(ray,eye,NUM_BOUNCES);
+			traceRay(ray,eye,NUM_BOUNCES,&cR,&cG,&cB);
 			
 			//Clamping the color, if the color has exceeded one. 
-			if(pxColor->r > 1)pxColor->r = 1.0;
-			if(pxColor->g > 1)pxColor->g = 1;
-			if(pxColor->b > 1)pxColor->b = 1;
+			if(cR > 1.0)cR = 1.0;
+			if(cG > 1.0)cG = 1.0;
+			if(cB > 1.0)cB = 1.0;
 
-			imageArray[y][x] = convertIntColor(pxColor->r,pxColor->g,pxColor->b);
+			imageArray[y][x] = convertIntColor(cR,cG,cB);
 
 			freeMatrix(eye);
 			eye = NULL;
 			freeMatrix(ray);
 			ray = NULL;
-			free(pxColor);
-			pxColor = NULL;
 		}
 	}
 	return NULL;
+}
+void generateImage(int threadCount, char *outputFile){
+	
 }
 void computePixels2(int threadCount){
 	int thread;
@@ -742,61 +734,6 @@ void computePixels2(int threadCount){
 	/*Wait to join each thread.*/
 	for(int thread = 0;thread < threadCount;++thread){
 		pthread_join(threads[thread],NULL);
-	}
-}
-//Starting to compute the color of each pixel,
-//and placing that pixel in the array of pixels. 
-void computePixels(){
-	//The ray should go directly through the middle of each pixel. 
-	double zeroX = (-cols / 2.0) + 0.5;
-	double zeroY = (-rows / 2.0) + 0.5;
-	//Used for converting the ray's x and y values into viewing coordinates. 
-	double planeX = (right - left) / (cols);
-	double planeY = (bottom - top) / (rows);
-
-	int x, y;
-
-	//Adjusting the pixel at (x,y) from the top left corner. 
-	//For each row of pixels...
-	Matrix *eye;
-	Matrix *ray;
-	double rayX, rayY, rayZ;
-	for(y = 0;y < rows;++y){
-	//for(y = rows / 2;y < rows / 2 + 1;++y){
-		//For each pixel within the row... 
-		for(x = 0;x < cols;++x){
-		//for(x = cols / 2;x < cols / 2 + 1;++x){
-			//Getting the ray vector of the current pixel.
-			//This is now the vector from the eye into the pixel. 
-			rayX = (x + zeroX) * planeX;
-			rayY = (y + zeroY) * planeY;
-			rayZ = -near;
-			//Converting the color that has been traced into an integer. 
-			ray = vec4(rayX,rayY,rayZ);
-			eye = point4(0,0,0);
-
-			//Computing the pixel color.
-			color *pxColor = traceRay(ray,eye,NUM_BOUNCES);
-			
-			//Clamping the color, if the color has exceeded one. 
-			if(pxColor->r > 1){
-				pxColor->r = 1;
-			}
-			if(pxColor->g > 1){
-				pxColor->g = 1;
-			}
-			if(pxColor->b > 1){
-				pxColor->b = 1;
-			}
-			imageArray[y][x] = convertIntColor(pxColor->r,pxColor->g,pxColor->b);
-
-			freeMatrix(eye);
-			eye = NULL;
-			freeMatrix(ray);
-			ray = NULL;
-			free(pxColor);
-			pxColor = NULL;
-		}
 	}
 }
 //Freeing the sphereList and the spheres it contains
