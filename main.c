@@ -54,8 +54,10 @@ typedef struct sphere{
 	double kAmb, kDif, kSpec, kR;
 	//Specular brightness exponent
        	int specExp; 	
+	Matrix *matrix;
+	Matrix *inverseMatrix;
 } sphere;
-
+Matrix *getSphereMatrix(sphere *);
 //Function for parsing the sphere from the text file.
 sphere *readSphere(FILE *fp){
 	int result;
@@ -69,7 +71,9 @@ sphere *readSphere(FILE *fp){
 	//Reading the color and the lighting parameters. Breaking if there is a read error. 
 	result = fscanf(fp, " %lf %lf %lf %lf %lf %lf %lf %d ",&oval->r,&oval->g,&oval->b,&oval->kAmb,&oval->kDif,&oval->kSpec,&oval->kR, &oval->specExp);
 	if(result != 8)return NULL;
-
+	
+	oval->matrix = getSphereMatrix(oval);
+	oval->inverseMatrix = getInverseMatrix(oval->matrix);
 	return oval;
 }
 
@@ -84,6 +88,7 @@ typedef struct light{
 	char *name;
 	double posX, posY, posZ;
 	double iR, iG, iB;
+	Matrix *lightPoint;
 }light;
 
 //Function for parsing the light from the text file.
@@ -100,6 +105,7 @@ light *readLight(FILE *fp){
 	result = fscanf(fp," %lf %lf %lf ",&lamp->iR,&lamp->iG,&lamp->iB);
 	if(result != 3)return NULL;
 
+	lamp->lightPoint = point4(lamp->posX,lamp->posY,lamp->posZ);
 	return lamp;
 }
 
@@ -318,6 +324,7 @@ void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
 	fclose(fp);
 }
 //Gets the transformation matrix for the current sphere. 
+//TODO: optimize this
 Matrix *getSphereMatrix(sphere *s){
 	Matrix *scale = scaleMatrix(s->scaleX,s->scaleY,s->scaleZ);
 	Matrix *t = translationMatrix(s->posX,s->posY,s->posZ);
@@ -328,18 +335,22 @@ Matrix *getSphereMatrix(sphere *s){
 }
 double computeTToSphere(Matrix*ray,Matrix *origin,sphere *s,double minimum);
 
-//Checks if there exists a collision
-//in the way of the path of this ray from the origin (the collision point) to light. 
+/**Checks if there is a sphere in the way of this ray on its way to light.
+ * Used for checking if this spot should get some extra lighting.
+ * */
 int existsCollision(Matrix *origin,Matrix *ray){
 	sphere *s;
 	double t;
-	for(int i = 0;i < numSpheres;++i){
-		s = sphereList[i];
+	sphere **list = sphereList;
+	sphere **listEnd = sphereList + numSpheres;
+	while(list < listEnd){	
+		s = *list;
 		t = computeTToSphere(ray,origin,s,MINIMUM_T);
 		//If there is indeed an n such that 0 <= t <= 1, there is a collision between a sphere and the shadow ray.
 		if(t >= MINIMUM_T && t <= 1.0 - MINIMUM_T){
 			return 1;
 		}
+		++list;
 	}
 	return 0;
 }
@@ -357,14 +368,11 @@ void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s,
 
 	//The ray from the collision point to the light source.
 	Matrix *ray;
-	//The point of the light source.
-	Matrix *lightPoint;
 	for(int i = 0;i < numLights;++i){
 		l = lightList[i];
-		lightPoint = point4(l->posX,l->posY,l->posZ);
 
 		//Computing a vector from the surface of the sphere to the light. 
-		ray = matrixCopy(lightPoint);
+		ray = matrixCopy(l->lightPoint);
 		inPlaceDifference(ray,colPoint);
 
 		//Now, need to ensure there aren't any spheres in the way.
@@ -439,7 +447,6 @@ void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s,
 			}
 		}
 		freeMatrix(ray);
-		freeMatrix(lightPoint);
 	}
 	*red = cR;
 	*green = cG;
@@ -487,10 +494,7 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		cB = s->kAmb * aB * s->b;	
 		
 		//Computing the inverse matrix of the sphere's transformation matrix. 
-		inverse = getSphereMatrix(s);
-		tmp = inverse;
-		inverse = getInverseMatrix(inverse);
-		freeMatrix(tmp);
+		inverse = getInverseMatrix(s->matrix);
 		
 		//Building the normal vector...
 		rayPrime = getProductMatrix(inverse,ray);
@@ -577,22 +581,15 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 	double a,b,c;
 	double t = -1;
 	double det;
-	//Need to find the distance to the sphere, if one exists. 
-
+	//Need to find the distance to the sphere, if a collision between the ray and the sphere exists. 
 	//Obtains the matrix of the sphere.
-	Matrix *m = getSphereMatrix(s);
-
-	//Getting the inverse matrix of the transformation, m.
-	inPlaceInverse(m);
+	Matrix *m = s->inverseMatrix;
 
 	//Applying the matrix to the ray. 
 	ray = getProductMatrix(m,ray);
 
 	//Applying the matrix to the origin of the vector.
 	origin = getProductMatrix(m,origin);
-
-	//Freeing the inverse matrix, since we're done with it. 
-	freeMatrix(m);
 	
 	a = dotProduct(ray,ray);
 	b = dotProduct(origin,ray);
@@ -717,11 +714,14 @@ void computePixels2(int threadCount){
 void freeLists(){
 	int i;
 	for(i = 0;i < numSpheres;++i){
+		freeMatrix(sphereList[i]->matrix);
+		freeMatrix(sphereList[i]->inverseMatrix);
 		free(sphereList[i]->name);
 		free(sphereList[i]);
 	}
 	free(sphereList);
 	for(i = 0;i < numLights;++i){
+		freeMatrix(lightList[i]->lightPoint);
 		free(lightList[i]->name);
 		free(lightList[i]);
 	}
