@@ -205,29 +205,37 @@ Matrix *getSumMatrix(Matrix *mOne,Matrix *mTwo){
  *@return Matrix * - a pointer to the product matrix generated from the multiplied matricies. 
  */
 Matrix *getProductMatrix(Matrix *mOne,Matrix*mTwo){
-    /*If the num cols of the first matrix don't match the rows of the second matrix, then multiplication is undefined.*/
-    if(mOne->cols != mTwo->rows)return NULL;
+	int row,col,currentPosition;
+	int newRows, newCols;
+	double **newMatrix = malloc(sizeof(double *) * newRows);
+	double sum;
+	Matrix *matrix;
+	/*If the num cols of the first matrix don't match the rows of the second matrix, then multiplication is undefined.*/
+	if(mOne->cols != mTwo->rows)return NULL;
+	
+	newRows = mOne->rows;
+	newCols = mTwo->cols;
+	newMatrix = malloc(sizeof(double*) * mOne->rows);
 
-    /*Allocating memory for the product matrix */
-    Matrix *productMatrix = createMatrix(mOne->rows,mTwo->cols);
-
-    /*Allocating memory for keeping track of the row, column,multiplication position,and the sum of multiplication.*/
-    int row,col,currentPosition;
-    double sum;
-    /*For each position inside the product matrix... */
-    for(row = 0;row < productMatrix->rows;++row){
-	for(col = 0;col < productMatrix->cols;++col){
-	    /*Generating the sum by adding the products of the row values of matrix one by the col values of matrix two */
-	    sum = 0;
-            for(currentPosition = 0;currentPosition < mOne->cols;++currentPosition){
-                sum += mOne->matrix[row][currentPosition] * mTwo->matrix[currentPosition][col];
-	    }
-
-	    /*Now that the sum has been found, setting the product matrix element to the sum.*/
-	    productMatrix->matrix[row][col] = sum;
-	}
-    }
-    return productMatrix;
+	/*Allocating memory for keeping track of the row, column,multiplication position,and the sum of multiplication.*/
+	/*For each position inside the product matrix... */
+	for(row = 0;row < newRows;++row){
+		newMatrix[row] = malloc(sizeof(double) * newCols);
+		for(col = 0;col < newCols;++col){
+			/*Generating the sum by adding the products of the row values of matrix one by the col values of matrix two */
+			sum = 0;
+			for(currentPosition = 0;currentPosition < mOne->cols;++currentPosition){
+				sum += mOne->matrix[row][currentPosition] * mTwo->matrix[currentPosition][col];
+			}
+			/*Now that the sum has been found, setting the product matrix element to the sum.*/
+			newMatrix[row][col] = sum;
+		}
+    	}
+	matrix = malloc(sizeof(Matrix));
+	matrix->matrix = newMatrix;
+	matrix->rows = newRows;
+	matrix->cols = newCols;
+	return matrix;
 }
 
 /**

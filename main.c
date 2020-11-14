@@ -6,7 +6,6 @@
 #include <pthread.h>
 #include <time.h>
 #include "doubleMatrix.h"
-#include "doubleMatrix.c"
 
 //@Author Jordan Malek
 
@@ -526,7 +525,7 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		//If the ray from the origin to collision point is longer than the vector from the origin to the center of the sphere,
 		//The normal should be flipped. 
 		inPlaceDifference(rayPrime,originPrime);
-		rayPrime->matrix[3][0] = 0.0;
+		toVector(rayPrime);  
 		if(dotProduct(rayPrime,rayPrime) > dotProduct(originPrime,originPrime)){
 			inPlaceScalarMultiply(normal,-1);
 		}
@@ -539,7 +538,7 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		
 
 		//If the ray should be reflected, reflect it. Here goes nothing.
-		if(bounceCount > 0 && s->kR > 0){
+		if(bounceCount > 0 && s->kR > 0.0){
 			double refR, refG, refB;
 			Matrix *reflectedRay;
 			Matrix *projection;
