@@ -56,6 +56,7 @@ typedef struct sphere{
        	int specExp; 	
 	Matrix *matrix;
 	Matrix *inverseMatrix;
+	Matrix *inverseTranspose; 
 } sphere;
 Matrix *getSphereMatrix(sphere *);
 //Function for parsing the sphere from the text file.
@@ -74,6 +75,9 @@ sphere *readSphere(FILE *fp){
 	
 	oval->matrix = getSphereMatrix(oval);
 	oval->inverseMatrix = getInverseMatrix(oval->matrix);
+
+	oval->inverseTranspose = matrixCopy(oval->inverseMatrix);
+	inPlaceTranspose(oval->inverseTranspose);
 	return oval;
 }
 /*
@@ -83,6 +87,7 @@ void freeSphere(sphere *s){
 	free(s->name);
 	freeMatrix(s->matrix);
 	freeMatrix(s->inverseMatrix);
+	freeMatrix(s->inverseTranspose);
 	free(s);
 }
 //Function for printing the parsed sphere. 
@@ -257,7 +262,7 @@ int parseFile(char *fileName){
 		//Read a light, up to 10 times. 
 		else if(strcmp(input,"LIGHT") == 0){
 			if(numLights >= 10){
-				fprintf(stderr,"::Too many lights. \n::There is a limit of 10 lights for this assignment.\n\n");
+				fprintf(stderr,"::Too many lights. \n::There is a limit of 10 lights for the given specifications.\n\n");
 				return -1;
 			}
 			light *l = readLight(file);
@@ -474,7 +479,6 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	sphere *s = NULL;
 	double t;
 	double lowestT = 2020202020202020;
-	int col;
 
 	//Computing the closest sphere intersection with the ray. 
 	double minimum = MINIMUM_T;
@@ -496,9 +500,6 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	if(s != NULL){
 		//Variables for making the color calculations of the pixel.
 		Matrix *normal = NULL;
-		Matrix *tmp = NULL;
-		Matrix *inverse = NULL;
-		Matrix *inverseTranspose = NULL;
 		Matrix *colPoint = getScalarMultipleMatrix(ray,t);
 		inPlaceSum(colPoint,origin);
 		Matrix *rayPrime = NULL;
@@ -509,22 +510,17 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		cG = s->kAmb * aG * s->g;
 		cB = s->kAmb * aB * s->b;	
 		
-		//Computing the inverse matrix of the sphere's transformation matrix. 
-		inverse = getInverseMatrix(s->matrix);
-		
 		//Building the normal vector...
-		rayPrime = getProductMatrix(inverse,ray);
-		originPrime = getProductMatrix(inverse,origin);
+		rayPrime = getProductMatrix(s->inverseMatrix,ray);
+		originPrime = getProductMatrix(s->inverseMatrix,origin);
 	
 		//Getting the sum of the ray prime and the origin prime, then using the inverse transpose to generate the actual normal vector. 
 		//Getting the collision point with respect to the canonical sphere - origin plus t times the ray. 
 		inPlaceScalarMultiply(rayPrime,t);
 		inPlaceSum(rayPrime,originPrime);
 		toVector(rayPrime); //We want the vector with respect to the origin - but the origin is 0,0,0 so we can just knock off the point value. 
-		inverseTranspose = matrixCopy(inverse);
-		inPlaceTranspose(inverseTranspose);
 		//The normal is inverse transpose applied to the collision point minus (0,0,0) as a vector - but subtracing (0,0,0) is redundant so we skip that.  
-		normal = getProductMatrix(inverseTranspose,rayPrime);
+		normal = getProductMatrix(s->inverseTranspose,rayPrime);
 		toVector(normal);
 		//If the ray from the origin to collision point is longer than the vector from the origin to the center of the sphere,
 		//The normal should be flipped. 
@@ -549,7 +545,7 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			--bounceCount;
 
 			//calculating the projection of the ray onto the normal. 
-			projection = getScalarMultipleMatrix(normal,2*((dotProduct(ray,normal) / dotProduct(normal,normal))));
+			projection = getScalarMultipleMatrix(normal,2 * ((dotProduct(ray,normal) / dotProduct(normal,normal))));
 
 			//Calculating the reflected ray. 
 			reflectedRay = matrixCopy(ray);
@@ -564,15 +560,11 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			freeMatrix(projection);
 			freeMatrix(reflectedRay);
 		}
-
-		freeMatrix(inverse);
 		freeMatrix(rayPrime);
 		freeMatrix(originPrime);
-		freeMatrix(inverseTranspose);
 		freeMatrix(colPoint);
 		freeMatrix(normal);
 	}
-
 	else{
 		//If this is a bounced ray, return black if there is no collision.
 		if(bounceCount < NUM_BOUNCES){
@@ -751,10 +743,9 @@ int main(int argc,char **argv){
 		fprintf(stderr,"Please retry running the program with the correct number of arguments\n");
 		return 1;
 	}
-
-	int i;
-	for(i = 1;i < argc;++i){
-		arg = argv[i];
+	++argv;
+	while(argv < endArgs){
+		arg = *argv;
 		/**If argument matches filename*/
 		if(strcmp(arg,"-v") == 0){
 			verbose = 1;
@@ -775,6 +766,7 @@ int main(int argc,char **argv){
 			}
 			if(verbose)printParsedFile(filename);
 		}
+		++argv;
 	}
 
 	createImageArray();
