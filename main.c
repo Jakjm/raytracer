@@ -76,7 +76,15 @@ sphere *readSphere(FILE *fp){
 	oval->inverseMatrix = getInverseMatrix(oval->matrix);
 	return oval;
 }
-
+/*
+ *Frees the heap space used by the given sphere. 
+ */
+void freeSphere(sphere *s){
+	free(s->name);
+	freeMatrix(s->matrix);
+	freeMatrix(s->inverseMatrix);
+	free(s);
+}
 //Function for printing the parsed sphere. 
 void printSphere(sphere *oval){
 	printf("Sphere Name: %s Position: (%.1lf %.1lf %.1lf) Scale: (%.1lf %.1lf %.1lf)\n", oval->name, oval->posX, oval->posY, oval->posZ, oval->scaleX, oval->scaleY, oval->scaleZ);
@@ -107,6 +115,14 @@ light *readLight(FILE *fp){
 
 	lamp->lightPoint = point4(lamp->posX,lamp->posY,lamp->posZ);
 	return lamp;
+}
+/*
+ *Frees the heap space used by the given light.
+ */
+void freeLight(light *l){
+	free(l->name);
+	freeMatrix(l->lightPoint);
+	free(l);
 }
 
 //Function for printing the parsed light. 
@@ -714,16 +730,11 @@ void computePixels2(int threadCount){
 void freeLists(){
 	int i;
 	for(i = 0;i < numSpheres;++i){
-		freeMatrix(sphereList[i]->matrix);
-		freeMatrix(sphereList[i]->inverseMatrix);
-		free(sphereList[i]->name);
-		free(sphereList[i]);
+		freeSphere(sphereList[i]);
 	}
 	free(sphereList);
 	for(i = 0;i < numLights;++i){
-		freeMatrix(lightList[i]->lightPoint);
-		free(lightList[i]->name);
-		free(lightList[i]);
+		freeLight(lightList[i]);
 	}
 	free(lightList);
 }
