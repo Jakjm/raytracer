@@ -4,6 +4,7 @@
 #include <math.h>
 /**Updating to allow the use of multithreading.*/
 #include <pthread.h>
+#include <time.h>
 #include "doubleMatrix.h"
 #include "doubleMatrix.c"
 
@@ -192,6 +193,8 @@ void printParsedFile(char* fileName){
 
 //Returns -1 if the parse was unsucessful.
 int parseFile(char *fileName){
+	/*Measuring time used to read the file.*/
+	clock_t endTime, startTime = clock();
 	//Flags for whether the viewing planes have been parsed or not.
 	int readNear, readLeft,readRight,readTop,readBottom;
 	readNear = 0;readLeft = 0;readRight = 0;readTop = 0;readBottom = 0;
@@ -307,6 +310,9 @@ int parseFile(char *fileName){
 		return -1;
 	}
 	result = fclose(file);
+
+	endTime = clock();
+	printf("Parsing: clock time: %ld clocks per second: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
 	return 0;		
 }
 //Function to convert rgb floats into an rgb color. 
@@ -326,25 +332,21 @@ void createImageArray(){
 //Copied from the website. 
 void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
 	FILE *fp;
-	const int maxVal=255; 
+	const int maxVal=255;
+	clock_t endTime, startTime = clock();
 	if(verbose)printf("Saving image %s: %d x %d\n", fname,Width,Height);
 	fp = fopen(fname,"wb");
 	if(!fp){
 		printf("Unable to open file '%s'\n",fname);
 		return;
 	}
-	/*fprintf(fp, "P6\n");
-	*fprintf(fp, "%d %d\n", Width, Height);
-	*fprintf(fp, "%d\n", maxVal);*/
 	fprintf(fp, "P6\n%d %d\n%d\n",Width,Height,maxVal);
 	fwrite(pixels,3,Width*Height,fp);
-	/*for(int j = 0; j < Height; j++) {
-	*	fwrite(&pixels[j*Width*3], 3,Width,fp);
-	}*/
 	fclose(fp);
+	endTime = clock();
+	printf("Writing: clock time: %ld clocks per sec: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
 }
 //Gets the transformation matrix for the current sphere. 
-//TODO: optimize this
 Matrix *getSphereMatrix(sphere *s){
 	Matrix *scale = scaleMatrix(s->scaleX,s->scaleY,s->scaleZ);
 	Matrix *t = translationMatrix(s->posX,s->posY,s->posZ);
@@ -383,12 +385,12 @@ int existsCollision(Matrix *origin,Matrix *ray){
 //returns the sum of all the light colors. 
 void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s, double *red,double *green,double *blue){
 	double cR = 0.0,cG = 0.0,cB = 0.0;
-
+	int i;
 	light *l;
 
 	//The ray from the collision point to the light source.
 	Matrix *ray;
-	for(int i = 0;i < numLights;++i){
+	for(i = 0;i < numLights;++i){
 		l = lightList[i];
 
 		//Computing a vector from the surface of the sphere to the light. 
@@ -692,13 +694,14 @@ void *computePixelThread(void *encoding){
 	return NULL;
 }
 void computePixels2(int threadCount){
+	clock_t endTime, startTime = clock();
 	int thread;
 	/*The i-th thread renders rowStart to rowEnd (not including the row-endth row).*/
 	int rowStart, rowEnd;
 	/*A particular thread will render rowHeight * cols pixels.*/ 
 	int rowHeight = rows / threadCount;
 	long encoding;
-
+	
 	/**Default to 1 if threadCount invalid*/
 	if(threadCount < 1 || threadCount > 16)threadCount = 1;
 	pthread_t threads[threadCount];
@@ -715,6 +718,9 @@ void computePixels2(int threadCount){
 	for(int thread = 0;thread < threadCount;++thread){
 		pthread_join(threads[thread],NULL);
 	}
+
+	endTime = clock();
+	printf("Raytracing: clock time: %ld clocks per second: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
 }
 //Freeing the sphereList and the spheres it contains
 //and the light list and the lights contained. 
