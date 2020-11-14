@@ -38,7 +38,7 @@ double r, g, b;
 //Ambient light
 double aR, aG, aB;
 char *outputFile;
-char *byteBuffer;
+unsigned char *byteBuffer;
 
 //Defining a structure for spheres. 
 typedef struct sphere{
@@ -54,6 +54,7 @@ typedef struct sphere{
 	double kAmb, kDif, kSpec, kR;
 	//Specular brightness exponent
        	int specExp; 	
+
 	Matrix *matrix;
 	Matrix *inverseMatrix;
 	Matrix *inverseTranspose; 
@@ -319,7 +320,7 @@ int convertIntColor(double red, double green, double blue){
 
 //Function to create the image array for the ray tracer. 
 void createImageArray(){
-	byteBuffer = malloc(sizeof(char) * (rows * cols * 3));
+	byteBuffer = malloc(sizeof(unsigned char) * (rows * cols * 3));
 }
 //Function to save the image
 //Copied from the website. 
@@ -356,7 +357,7 @@ Matrix *getSphereMatrix(sphere *s){
 }
 double computeTToSphere(Matrix*ray,Matrix *origin,sphere *s,double minimum);
 
-/**Checks if there is a sphere in the way of this ray on its way to light.
+/**Checks if there is a sphere in the way of this shadow ray on its way to a light source.
  * Used for checking if this spot should get some extra lighting.
  * */
 int existsCollision(Matrix *origin,Matrix *ray){
@@ -659,7 +660,7 @@ void *computePixelThread(void *encoding){
 	double rayX, rayY, rayZ;
 	double cR, cG, cB;
 
-	char *buffer = byteBuffer + (rowStart * cols * 3);
+	unsigned char *buffer = byteBuffer + (rowStart * cols * 3);
 	eye = vec4(0,0,0);
 	ray = vec4(0,0,0);
 	/**Render the pixels that have been assigned to this thread.*/
@@ -671,7 +672,6 @@ void *computePixelThread(void *encoding){
 			rayZ = -near;
 			setVec4(ray,rayX,rayY,rayZ);
 			setPoint4(eye,0.0,0.0,0.0);
-			
 			//Computing the pixel color.
 			traceRay(ray,eye,NUM_BOUNCES,&cR,&cG,&cB);
 			
@@ -700,9 +700,10 @@ void computePixels2(int threadCount){
 	/*A particular thread will render rowHeight * cols pixels.*/ 
 	int rowHeight = rows / threadCount;
 	long encoding;
+
+	/**Default to 1 if threadCount invalid*/
+	if(threadCount < 1 || threadCount > 16)threadCount = 1;
 	pthread_t threads[threadCount];
-	/**Default to 4 if threadCount invalid*/
-	if(threadCount < 1 || threadCount > 16)threadCount = 4;
 	
 	for(thread = 0;thread < threadCount;++thread){
 		rowStart = thread * rowHeight;
