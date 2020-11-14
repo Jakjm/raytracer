@@ -1,0 +1,64 @@
+main.c: In function ‘computePixels2’:
+main.c:714:59: warning: passing argument 4 of ‘pthread_create’ makes pointer from integer without a cast [-Wint-conversion]
+  714 |   pthread_create(&threads[thread],NULL,computePixelThread,encoding);
+      |                                                           ^~~~~~~~
+      |                                                           |
+      |                                                           long int
+In file included from main.c:6:
+/usr/include/pthread.h:201:24: note: expected ‘void * restrict’ but argument is of type ‘long int’
+  201 |       void *__restrict __arg) __THROWNL __nonnull ((1, 3));
+      |       ~~~~~~~~~~~~~~~~~^~~~~
+In file included from main.c:8:
+main.c: At top level:
+doubleMatrix.h:35:23: warning: inline function ‘translationMatrix’ declared but never defined
+   35 | extern inline Matrix *translationMatrix(double,double,double);
+      |                       ^~~~~~~~~~~~~~~~~
+doubleMatrix.h:34:23: warning: inline function ‘scaleMatrix’ declared but never defined
+   34 | extern inline Matrix *scaleMatrix(double sX,double sY,double sZ);
+      |                       ^~~~~~~~~~~
+doubleMatrix.h:27:23: warning: inline function ‘getScalarMultipleMatrix’ declared but never defined
+   27 | extern inline Matrix *getScalarMultipleMatrix(Matrix *,double);
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~
+doubleMatrix.h:26:23: warning: inline function ‘identityMatrix’ declared but never defined
+   26 | extern inline Matrix *identityMatrix(int size);
+      |                       ^~~~~~~~~~~~~~
+doubleMatrix.h:25:23: warning: inline function ‘vec4’ declared but never defined
+   25 | extern inline Matrix *vec4(double x,double y,double z);
+      |                       ^~~~
+doubleMatrix.h:24:23: warning: inline function ‘point4’ declared but never defined
+   24 | extern inline Matrix *point4(double x,double y,double z);
+      |                       ^~~~~~
+doubleMatrix.h:23:23: warning: inline function ‘matrixCopy’ declared but never defined
+   23 | extern inline Matrix *matrixCopy(Matrix *);
+      |                       ^~~~~~~~~~
+doubleMatrix.h:21:23: warning: inline function ‘getSumMatrix’ declared but never defined
+   21 | extern inline Matrix *getSumMatrix(Matrix *m1,Matrix *m2);
+      |                       ^~~~~~~~~~~~
+doubleMatrix.h:20:23: warning: inline function ‘getInverseMatrix’ declared but never defined
+   20 | extern inline Matrix *getInverseMatrix(Matrix *m1);
+      |                       ^~~~~~~~~~~~~~~~
+doubleMatrix.h:19:23: warning: inline function ‘getProductMatrix’ declared but never defined
+   19 | extern inline Matrix *getProductMatrix(Matrix *m1,Matrix *m2);
+      |                       ^~~~~~~~~~~~~~~~
+doubleMatrix.h:9:20: warning: inline function ‘solveMatrix’ declared but never defined
+    9 | extern inline void solveMatrix(Matrix *m);
+      |                    ^~~~~~~~~~~
+doubleMatrix.h:8:23: warning: inline function ‘createMatrix’ declared but never defined
+    8 | extern inline Matrix *createMatrix(int rows, int cols);
+      |                       ^~~~~~~~~~~~
+doubleMatrix.h:7:20: warning: inline function ‘scalarMultiplyRow’ declared but never defined
+    7 | extern inline void scalarMultiplyRow(Matrix *matrix,int row,double scalar);
+      |                    ^~~~~~~~~~~~~~~~~
+doubleMatrix.h:6:20: warning: inline function ‘subtractRow’ declared but never defined
+    6 | extern inline void subtractRow(Matrix *matrix,int differenceRow,int subtractedRow,double scalar);
+      |                    ^~~~~~~~~~~
+doubleMatrix.h:5:20: warning: inline function ‘addRow’ declared but never defined
+    5 | extern inline void addRow(Matrix *matrix,int sumRow,int addedRow,double scalar);
+      |                    ^~~~~~
+doubleMatrix.h:4:20: warning: inline function ‘swapRows’ declared but never defined
+    4 | extern inline void swapRows(Matrix *matrix,int rowOne,int rowTwo);
+      |                    ^~~~~~~~
+doubleMatrix.c: In function ‘getProductMatrix’:
+doubleMatrix.c:210:23: warning: ‘newRows’ is used uninitialized in this function [-Wuninitialized]
+  210 |  double **newMatrix = malloc(sizeof(double *) * newRows);
+      |                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

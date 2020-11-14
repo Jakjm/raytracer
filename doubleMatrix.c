@@ -1,11 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "doubleMatrix.h"
-//typedef struct Matrix{
-//    double **matrix;
-//    int rows;
-//    int cols;
-//} Matrix;
+typedef struct Matrix{
+	int rows;
+	int cols;
+	double **matrix;
+} Matrix;
 /**
  *Frees the memory used by this matrix so it can be reused.
  *@param Matrix *matrix- a pointer to the matrix that should be freed. 
@@ -128,7 +128,7 @@ double dotProduct(Matrix *m1,Matrix *m2){
  *@param Matrix * - a pointer to the matrix that should be copied.
  *@return - a pointer to the copy of the parameter matrix.
  */
-extern inline Matrix *matrixCopy(Matrix *matrix){
+Matrix *matrixCopy(Matrix *matrix){
     double **newMatrix;
 
     /*Allocating memory to create row pointers for new matrix to point to. */
@@ -165,25 +165,25 @@ void printMatrix(Matrix *matrix){
     printf("\n");
 }
 
-extern inline void swapRows(Matrix *matrix,int rowOne,int rowTwo){
+void swapRows(Matrix *matrix,int rowOne,int rowTwo){
      double *temp = matrix->matrix[rowOne];
      matrix->matrix[rowOne] = matrix->matrix[rowTwo];
      matrix->matrix[rowTwo] = temp; 
 }
 
-extern inline void scalarMultiplyRow(Matrix *matrix,int row,double scalar){
+void scalarMultiplyRow(Matrix *matrix,int row,double scalar){
     int currentCol;
     for(currentCol = 0;currentCol < matrix->cols;++currentCol){
 	matrix->matrix[row][currentCol] *= scalar;
     }
 }
-extern inline void addRow(Matrix *matrix,int sumRow,int addedRow,double scalar){
+void addRow(Matrix *matrix,int sumRow,int addedRow,double scalar){
     int currentCol;
     for(currentCol = 0; currentCol < matrix->cols;++currentCol){
 	matrix->matrix[sumRow][currentCol] += scalar * matrix->matrix[addedRow][currentCol];
     }
 }
-extern inline void subtractRow(Matrix *matrix,int differenceRow,int subtractedRow,double scalar){
+void subtractRow(Matrix *matrix,int differenceRow,int subtractedRow,double scalar){
     addRow(matrix,differenceRow,subtractedRow,-scalar);
 }
 //Returns the sum of two matricies. 
@@ -207,7 +207,7 @@ Matrix *getSumMatrix(Matrix *mOne,Matrix *mTwo){
 Matrix *getProductMatrix(Matrix *mOne,Matrix*mTwo){
 	int row,col,currentPosition;
 	int newRows, newCols;
-	double **newMatrix = malloc(sizeof(double *) * newRows);
+	double **newMatrix;
 	double sum;
 	Matrix *matrix;
 	/*If the num cols of the first matrix don't match the rows of the second matrix, then multiplication is undefined.*/
@@ -243,7 +243,7 @@ Matrix *getProductMatrix(Matrix *mOne,Matrix*mTwo){
  *@param size - the number of rows and columns the Matrix should have.
  *@return Matrix * - a pointer to the newly formed identity matrix.
  */
-extern inline Matrix *identityMatrix(int size){
+Matrix *identityMatrix(int size){
     /**Creating the matrix */
     Matrix *matrix = createMatrix(size,size);
     int currentPos;
@@ -349,7 +349,7 @@ char inPlaceInverse(Matrix *m){
  *@param Matrix *matrix - a pointer to the matrix that the inverse should be made for.
  *@return Matrix * - a pointer to the newly formed inverse matrix, or NULL if the inverse DNE.
  */
-extern inline Matrix *getInverseMatrix(Matrix *matrix){
+Matrix *getInverseMatrix(Matrix *matrix){
     	/** If the matrix is not square, then inversion is impossible, so we return null. */
     	if(matrix->rows != matrix->cols)return NULL;
 

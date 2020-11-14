@@ -711,7 +711,7 @@ void computePixels2(int threadCount){
 		encoding = rowStart;
 		encoding = encoding << 32;
 		encoding += rowEnd;
-		pthread_create(&threads[thread],NULL,computePixelThread,encoding);
+		pthread_create(&threads[thread],NULL,computePixelThread,(void*)encoding);
 	}
 	/*Wait to join each thread.*/
 	for(int thread = 0;thread < threadCount;++thread){
