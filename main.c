@@ -327,22 +327,20 @@ void createImageArray(){
 void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
 	FILE *fp;
 	const int maxVal=255; 
-  	char buf [8192];
 	if(verbose)printf("Saving image %s: %d x %d\n", fname,Width,Height);
 	fp = fopen(fname,"wb");
-	setbuf(fp,buf);
 	if(!fp){
 		printf("Unable to open file '%s'\n",fname);
 		return;
 	}
-	fprintf(fp, "P6\n");
-	fprintf(fp, "%d %d\n", Width, Height);
-	fprintf(fp, "%d\n", maxVal);
-
-	for(int j = 0; j < Height; j++) {
-		fwrite(&pixels[j*Width*3], 3,Width,fp);
-	}
-	fflush(fp);
+	/*fprintf(fp, "P6\n");
+	*fprintf(fp, "%d %d\n", Width, Height);
+	*fprintf(fp, "%d\n", maxVal);*/
+	fprintf(fp, "P6\n%d %d\n%d\n",Width,Height,maxVal);
+	fwrite(pixels,3,Width*Height,fp);
+	/*for(int j = 0; j < Height; j++) {
+	*	fwrite(&pixels[j*Width*3], 3,Width,fp);
+	}*/
 	fclose(fp);
 }
 //Gets the transformation matrix for the current sphere. 
