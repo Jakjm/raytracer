@@ -16,6 +16,7 @@ void toVector(Matrix *m);
 void inPlaceScalarMultiply(Matrix *,double);
 void printMatrix(Matrix *m);
 //Matrix operations, sum, product, inverse
+char placeProductMatrix(Matrix *,Matrix *,Matrix *);
 Matrix *getProductMatrix(Matrix *m1,Matrix *m2);
 Matrix *getInverseMatrix(Matrix *m1);
 Matrix *getSumMatrix(Matrix *m1,Matrix *m2);
