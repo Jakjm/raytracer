@@ -311,7 +311,7 @@ int parseFile(char *fileName){
 	result = fclose(file);
 
 	endTime = clock();
-	printf("Parsing: clock time: %ld clocks per second: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
+	if(verbose)printf("Parsing: clock time: %ld clocks per second: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
 	return 0;		
 }
 //Function to convert rgb floats into an rgb color. 
@@ -343,7 +343,7 @@ void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
 	fwrite(pixels,3,Width*Height,fp);
 	fclose(fp);
 	endTime = clock();
-	printf("Writing: clock time: %ld clocks per sec: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
+	if(verbose)printf("Writing: clock time: %ld clocks per sec: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
 }
 //Gets the transformation matrix for the current sphere. 
 Matrix *getSphereMatrix(sphere *s){
@@ -719,7 +719,7 @@ void computePixels2(int threadCount){
 	}
 
 	endTime = clock();
-	printf("Raytracing: clock time: %ld clocks per second: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
+	if(verbose)printf("Raytracing: clock time: %ld clocks per second: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
 }
 //Freeing the sphereList and the spheres it contains
 //and the light list and the lights contained. 
