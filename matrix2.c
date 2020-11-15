@@ -23,6 +23,7 @@ Matrix *point4(double x,double y,double z){
 	*m = z;
 	++m;
 	*m = 1;
+	return newMatrix;
 }
 /**Allocates a 4 dimensional vector, with the given x,y,z position.*/
 Matrix *vec4(double x,double y,double z){
@@ -39,6 +40,7 @@ Matrix *vec4(double x,double y,double z){
 	*m = z;
 	++m;
 	*m = 0;
+	return newMatrix;
 }
 /**
  * Adds m2 to m1. Returns 1 if successful;
@@ -100,7 +102,6 @@ Matrix *getProductMatrix(Matrix *m1,Matrix *m2){
 	double *pos1, *pos2, p;
 	int row, col;
 	int maxRow, maxCol;
-	int numProducts;
 	int m1Cols = m1->numCols;
 	int m2Rows = m2->numRows;
 	Matrix *newMatrix;
@@ -113,10 +114,10 @@ Matrix *getProductMatrix(Matrix *m1,Matrix *m2){
 	m = malloc(sizeof(double) * (maxRow * maxCol));
 	for(row = 0;row < maxRow; ++row){
 		for(col = 0;col < maxCol; ++col){
-			pos1 = m1->matrix + row * numProducts; 
+			pos1 = m1->matrix + row * m1Cols; 
 			pos2 = m2->matrix + col;
 			sum = 0.0;
-			for(p = 0;p < numProducts;++p){
+			for(p = 0;p < m1Cols;++p){
 				sum += *pos1 + *pos2;
 				++pos1;
 				pos2 += maxCol;
