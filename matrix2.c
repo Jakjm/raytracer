@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "doubleMatrix.h"
 /*Creating an improved version of the matrix library used by my raytracer.*/
 /*This should hopefully help me make considerable improvements to the runtime.*/
 typedef struct Matrix{
@@ -7,6 +8,7 @@ typedef struct Matrix{
 	int numRows;
 	int numCols;
 } Matrix;
+
 
 /*Places a scaling matrix with the given scaling attributes into newMatrix*/
 void placeScaleMatrix(double sX,double sY, double sZ, Matrix *newMatrix){
@@ -33,6 +35,90 @@ void placeTranslationMatrix(double tX,double tY, double tZ, Matrix *newMatrix){
 	*(m+7) = tY;
 	*(m+11) = tZ;
 }
+Matrix *getInverseMatrix(Matrix *m){
+	Matrix *inverse = malloc(sizeof(Matrix));
+	inverse->matrix = malloc(sizeof(double) * (m->numRows * m->numRows));
+	placeInverseMatrix(m,inverse);
+	return inverse;
+}
+/*
+ *Produces the inverse of the given matrix.
+ */
+void placeInverseMatrix(Matrix *m,Matrix *inverseMatrix){
+	int row, col, pos, otherRow;
+	/*Storing the working positions between two rows of the matrix*/
+	double *row1, *rowEnd, *row2;
+	double *irow1, *irow2;
+	
+	double swap;
+	double scalar;
+	int numRows = m->numRows;
+	int numCols = m->numCols;
+	/*Put an identity matrix in the place of the inverse matrix.*/
+	placeScaleMatrix(1,1,1,inverseMatrix);
+
+	/*Solving the given matrix.*/
+	for(row = 0;row < numRows;++row){
+		/*Look for nonzero row.*/
+		for(col = row;row < numRows; ++row){
+			pos = numCols*row + col;
+			if(*(m->matrix + pos) != 0.0)break;
+		}
+		if(row >= numRows){
+			return;
+		}
+
+		/*Swap the found row and the position where the row should go.*/
+		row1 = m->matrix + row * numCols;
+		row2 = m->matrix + col * numCols;
+		rowEnd = row1 + numRows;
+
+		irow1 = inverseMatrix->matrix + row * numCols;
+		irow2 = inverseMatrix->matrix + col * numCols;
+		
+		/*Scalar divide the row by this value*/
+		scalar = 1.0 / *(row1 + col);
+		for(;row1 < rowEnd;++row1, ++row2, ++irow1, ++irow2){
+			/*Swap the rows in the matrix and apply the scalar multiplication to ensure we have a 1 in that column for this row.*/
+			swap = *row1;
+			*row1 = *row2;
+			*row2 = swap * scalar;
+			
+			/*Swap the rows in the soon-to-be inverse matrix and apply the scalar multiplication*/
+			swap = *irow1;
+			*irow1 = *irow2;
+			*irow2 = swap * scalar;
+		}
+		row = col;
+		rowEnd = m->matrix + row * numCols + numCols;
+		for(otherRow = 0;otherRow < row;++otherRow){
+			scalar = *(m->matrix + (numRows * otherRow) + col);
+			
+			row1 = m->matrix + row * numCols;
+			row2 = m->matrix + otherRow * numCols; 
+	
+			irow1 = inverseMatrix->matrix + numRows*numCols;
+			irow2 = inverseMatrix->matrix + numRows*numCols;
+			for(;row1 < rowEnd;++row1, ++row2, ++irow1, ++irow2){
+				*row2 -= scalar * (*row1);
+				*irow2 -= scalar * (*irow1);
+			}
+		}
+		for(otherRow = row + 1;otherRow < numRows;++otherRow){
+			scalar = *(m->matrix + (numRows * otherRow) + col);
+			
+			row1 = m->matrix + row * numCols;
+			row2 = m->matrix + otherRow * numCols; 
+	
+			irow1 = inverseMatrix->matrix + numRows*numCols;
+			irow2 = inverseMatrix->matrix + numRows*numCols;
+			for(;row1 < rowEnd;++row1, ++row2, ++irow1, ++irow2){
+				*row2 -= scalar * (*row1);
+				*irow2 -= scalar * (*irow1);
+			}
+		}
+	}
+}
 
 /**Allocates a scaling matrix with the given scaling attributes*/
 Matrix *scaleMatrix(double sX, double sY, double sZ){
@@ -49,7 +135,7 @@ Matrix *scaleMatrix(double sX, double sY, double sZ){
 	return newMatrix;
 }
 /**Allocates a translation matrix with the given translation attributes*/
-Matrix *tranlsationMatrix(double tX,double tY,double tZ){
+Matrix *translationMatrix(double tX,double tY,double tZ){
 	Matrix *newMatrix = malloc(sizeof(Matrix));
 	double *m = calloc(sizeof(double),16);
 	newMatrix->matrix = m;
@@ -124,12 +210,32 @@ void placeVec4(double x,double y,double z,Matrix *newMatrix){
 	++m;
 	*m = 0;
 }
+void setPoint4(Matrix *matrix, double x,double y, double z){
+	double *m = matrix->matrix;
+	*m = x;
+	++m;
+	*m = y;
+	++m;
+	*m = z;
+	++m;
+	*m = 1;
+}
+void setVec4(Matrix *matrix, double x,double y, double z){
+	double *m = matrix->matrix;
+	*m = x;
+	++m;
+	*m = y;
+	++m;
+	*m = z;
+	++m;
+	*m = 0;
+}
 /*Sets the matrix to be a point by setting the 4th element to be 1.*/
-void setPoint(Matrix *p){
+void toPoint(Matrix *p){
 	*(p->matrix+3) = 1.0;
 }
 /*Sets the matrix to be a vector by setting the 4th element to be 0.*/
-void setVec(Matrix *v){
+void toVector(Matrix *v){
 	*(v->matrix+3) = 0.0;
 }
 /**Allocates a 3 dimensional vector, with the given x,y,z position.*/
@@ -218,6 +324,8 @@ char placeProductMatrix(Matrix *m1,Matrix *m2,Matrix *newMatrix){
 	}
 	maxRow = m1->numRows;
 	maxCol = m2->numCols;
+	newMatrix->numRows = maxRow;
+	newMatrix->numCols = maxCol;
 	/**Allocate the new matrix*/
 	m = newMatrix->matrix;
 	for(row = 0;row < maxRow; ++row){
@@ -226,7 +334,7 @@ char placeProductMatrix(Matrix *m1,Matrix *m2,Matrix *newMatrix){
 			pos2 = m2->matrix + col;
 			sum = 0.0;
 			for(p = 0;p < m1Cols;++p){
-				sum += *pos1 + *pos2;
+				sum += (*pos1) * (*pos2);
 				++pos1;
 				pos2 += maxCol;
 			}
@@ -277,4 +385,113 @@ Matrix *getProductMatrix(Matrix *m1,Matrix *m2){
 void freeMatrix(Matrix *m){
 	free(m->matrix);
 	free(m);
+}
+void placeMatrixCopy(Matrix *m1, Matrix *m2){
+	int numRows, numCols;
+	double *pos1, *pos2, *end;
+	pos1 = m1->matrix;
+	pos2 = m2->matrix;
+	
+	numRows = m1->numRows;
+	numCols = m1->numCols;
+	
+	m2->numRows = numRows;
+	m2->numCols = numCols;
+	end = pos1 + numRows * numCols;
+	while(pos1 < end){
+		++pos1;
+		++pos2;
+	}
+}
+/*This transposes a matrix assuming it's */
+char inPlaceTranspose(Matrix *m){
+	int row, col;
+	double *pos1, *pos2, swap;
+	double *mat;
+	int numRows = m->numRows;
+	if(numRows != m->numCols)return 0;
+	for(row = 0;row < numRows;++row){
+		for(col = row + 1;col < numRows;++col){
+			pos1 = mat + row * numRows + col;
+			pos2 = mat + col * numRows + row;
+			swap = *pos1;
+			*pos1 = *pos2;
+			*pos2 = swap;
+		}
+	}	
+	return 1;
+}
+void placeScalarMultipleMatrix(Matrix *m,Matrix *m2, double scalar){
+	int numRows, numCols;
+	double *pos1, *pos2, *end;
+	
+	numRows = m->numRows;
+	numCols = m->numCols;
+	m2->numRows = numRows;
+	m2->numCols = numCols;
+
+	pos1 = m->matrix;
+	pos2 = m2->matrix;
+	end = m->matrix + numRows * numCols;
+	while(pos1 < end){
+		*pos2 = *pos1 * scalar;
+		++pos1;
+		++pos2;
+	}
+}
+Matrix *getScalarMultipleMatrix(Matrix *m,double scalar){
+	Matrix *productMatrix = malloc(sizeof(Matrix)); 
+	productMatrix->matrix = malloc(sizeof(double) * m->numRows * m->numCols);
+	placeScalarMultipleMatrix(m,productMatrix,scalar);
+	return productMatrix;
+}
+Matrix *matrixCopy(Matrix *m){
+	Matrix *copyMatrix = malloc(sizeof(Matrix));
+	copyMatrix = malloc(sizeof(Matrix) * m->numRows * m->numCols);
+	placeMatrixCopy(m,copyMatrix);
+	return copyMatrix;
+}
+void printMatrix(Matrix *m){
+	int i;
+	for(i = 0;i < m->numRows * m->numCols;++i){
+		printf("| %.2f |%s",m->matrix[i],((i + 1) % m->numCols) == 0 ? "\n" : " ");
+	}
+}
+int main2(){
+	Matrix m, m2, m3, m4, m5, *mptr;
+	double list[16], list2[16], list3[16], list4[4], list5[4]; 
+	m.matrix = list;
+	m2.matrix = list2;
+	m3.matrix = list3;
+	m4.matrix = list4;
+	m5.matrix = list5;
+	
+	placeTranslationMatrix(1,1,1,&m);
+	printMatrix(&m);
+	placeScaleMatrix(2,2,2,&m2);
+	
+	printf("\n");
+	printMatrix(&m2);
+	
+	/*Test product matrix function*/
+	placeProductMatrix(&m2,&m,&m3);
+	
+	printf("\n");
+	printMatrix(&m3);
+
+	mptr = getInverseMatrix(&m3);
+	printf("\n");
+	printMatrix(mptr);
+
+	placePoint4(5,5,5, &m4);
+	printf("\n");
+	printMatrix(&m4);
+	
+	printf("\n");
+	printMatrix(&m3);
+
+	placeProductMatrix(&m3,&m4,&m5);
+	printf("\n");
+	printMatrix(&m5);
+	return 0;
 }

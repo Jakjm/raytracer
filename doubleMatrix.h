@@ -14,10 +14,11 @@ char inPlaceInverse(Matrix *);
 void freeMatrix(Matrix *m);
 void toVector(Matrix *m);
 void inPlaceScalarMultiply(Matrix *,double);
-void printMatrix(Matrix *m);
+void printMatrix(Matrix *);
 //Matrix operations, sum, product, inverse
 char placeProductMatrix(Matrix *,Matrix *,Matrix *);
 Matrix *getProductMatrix(Matrix *m1,Matrix *m2);
+void placeInverseMatrix(Matrix *, Matrix *);
 Matrix *getInverseMatrix(Matrix *m1);
 Matrix *getSumMatrix(Matrix *m1,Matrix *m2);
 //Matrix generation.
@@ -34,7 +35,8 @@ void setPoint4(Matrix *,double, double, double);
 //Affine transformation matricies. 
 Matrix *scaleMatrix(double sX,double sY,double sZ);
 Matrix *translationMatrix(double,double,double);
-
+void placeScaleMatrix(double, double, double, Matrix *);
+void placeTranslationMatrix(double,double,double,Matrix *);
 //Vector functions
 double dotProduct(Matrix *,Matrix*);
 #endif
