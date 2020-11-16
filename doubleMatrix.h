@@ -35,6 +35,7 @@ void setPoint4(Matrix *,double, double, double);
 //Affine transformation matricies. 
 Matrix *scaleMatrix(double sX,double sY,double sZ);
 Matrix *translationMatrix(double,double,double);
+void placeMatrixCopy(Matrix *,Matrix *);
 void placeScaleMatrix(double, double, double, Matrix *);
 void placeTranslationMatrix(double,double,double,Matrix *);
 //Vector functions

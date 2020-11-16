@@ -44,7 +44,10 @@ Matrix *getInverseMatrix(Matrix *m){
 /*
  *Produces the inverse of the given matrix.
  */
-void placeInverseMatrix(Matrix *m,Matrix *inverseMatrix){
+void placeInverseMatrix(Matrix *matrix,Matrix *inverseMatrix){
+	Matrix m;
+	double copyBuf[matrix->numRows * matrix->numCols];
+	
 	int row, col, pos, otherRow;
 	/*Storing the working positions between two rows of the matrix*/
 	double *row1, *rowEnd, *row2;
@@ -52,25 +55,30 @@ void placeInverseMatrix(Matrix *m,Matrix *inverseMatrix){
 	
 	double swap;
 	double scalar;
-	int numRows = m->numRows;
-	int numCols = m->numCols;
+	int numRows;
+	int numCols;
+	
 	/*Put an identity matrix in the place of the inverse matrix.*/
 	placeScaleMatrix(1,1,1,inverseMatrix);
+	m.matrix = copyBuf;
+	placeMatrixCopy(matrix,&m);
 
+	numRows = m.numRows;
+	numCols = m.numCols;
 	/*Solving the given matrix.*/
 	for(row = 0;row < numRows;++row){
 		/*Look for nonzero row.*/
 		for(col = row;row < numRows; ++row){
 			pos = numCols*row + col;
-			if(*(m->matrix + pos) != 0.0)break;
+			if(*(copyBuf + pos) != 0.0)break;
 		}
 		if(row >= numRows){
 			return;
 		}
 
 		/*Swap the found row and the position where the row should go.*/
-		row1 = m->matrix + row * numCols;
-		row2 = m->matrix + col * numCols;
+		row1 = copyBuf + row * numCols;
+		row2 = copyBuf + col * numCols;
 		rowEnd = row1 + numRows;
 
 		irow1 = inverseMatrix->matrix + row * numCols;
@@ -90,12 +98,12 @@ void placeInverseMatrix(Matrix *m,Matrix *inverseMatrix){
 			*irow2 = swap * scalar;
 		}
 		row = col;
-		rowEnd = m->matrix + row * numCols + numCols;
+		rowEnd = copyBuf + row * numCols + numCols;
 		for(otherRow = 0;otherRow < row;++otherRow){
-			scalar = *(m->matrix + (numRows * otherRow) + col);
+			scalar = *(copyBuf + (numRows * otherRow) + col);
 			
-			row1 = m->matrix + row * numCols;
-			row2 = m->matrix + otherRow * numCols; 
+			row1 = copyBuf + row * numCols;
+			row2 = copyBuf + otherRow * numCols; 
 	
 			irow1 = inverseMatrix->matrix + numRows*numCols;
 			irow2 = inverseMatrix->matrix + numRows*numCols;
@@ -105,10 +113,10 @@ void placeInverseMatrix(Matrix *m,Matrix *inverseMatrix){
 			}
 		}
 		for(otherRow = row + 1;otherRow < numRows;++otherRow){
-			scalar = *(m->matrix + (numRows * otherRow) + col);
+			scalar = *(copyBuf + (numRows * otherRow) + col);
 			
-			row1 = m->matrix + row * numCols;
-			row2 = m->matrix + otherRow * numCols; 
+			row1 = copyBuf + row * numCols;
+			row2 = copyBuf + otherRow * numCols; 
 	
 			irow1 = inverseMatrix->matrix + numRows*numCols;
 			irow2 = inverseMatrix->matrix + numRows*numCols;
@@ -386,6 +394,7 @@ void freeMatrix(Matrix *m){
 	free(m->matrix);
 	free(m);
 }
+/*Copies matrix 1 into matrix 2*/
 void placeMatrixCopy(Matrix *m1, Matrix *m2){
 	int numRows, numCols;
 	double *pos1, *pos2, *end;
@@ -397,8 +406,10 @@ void placeMatrixCopy(Matrix *m1, Matrix *m2){
 	
 	m2->numRows = numRows;
 	m2->numCols = numCols;
+	
 	end = pos1 + numRows * numCols;
 	while(pos1 < end){
+		*pos2 = *pos1;
 		++pos1;
 		++pos2;
 	}
@@ -408,12 +419,16 @@ char inPlaceTranspose(Matrix *m){
 	int row, col;
 	double *pos1, *pos2, swap;
 	double *mat;
+
 	int numRows = m->numRows;
-	if(numRows != m->numCols)return 0;
+	int numCols = m->numCols;
+	if(numRows != numCols)return 0;
+	mat = m->matrix;
 	for(row = 0;row < numRows;++row){
-		for(col = row + 1;col < numRows;++col){
+		for(col = row;col < numRows;++col){
 			pos1 = mat + row * numRows + col;
 			pos2 = mat + col * numRows + row;
+			
 			swap = *pos1;
 			*pos1 = *pos2;
 			*pos2 = swap;
@@ -447,7 +462,7 @@ Matrix *getScalarMultipleMatrix(Matrix *m,double scalar){
 }
 Matrix *matrixCopy(Matrix *m){
 	Matrix *copyMatrix = malloc(sizeof(Matrix));
-	copyMatrix = malloc(sizeof(Matrix) * m->numRows * m->numCols);
+	copyMatrix->matrix = malloc(sizeof(double) * m->numRows * m->numCols);
 	placeMatrixCopy(m,copyMatrix);
 	return copyMatrix;
 }
@@ -487,7 +502,12 @@ int main2(){
 	printf("\n");
 	printMatrix(&m4);
 	
-	printf("\n");
+	printf("\nBefore transpose:\n");
+	printMatrix(&m3);
+
+	inPlaceTranspose(&m3);
+
+	printf("\nAfter transpose:\n");
 	printMatrix(&m3);
 
 	placeProductMatrix(&m3,&m4,&m5);
