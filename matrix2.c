@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "doubleMatrix.h"
+#include "matrix2.h"
 /*Creating an improved version of the matrix library used by my raytracer.*/
 /*This should hopefully help me make considerable improvements to the runtime.*/
 
@@ -49,92 +49,91 @@ Matrix *getInverseMatrix(Matrix *m){
 	placeInverseMatrix(m,inverse);
 	return inverse;
 }
-/*
- *Produces the inverse of the given matrix.
- */
-void placeInverseMatrix(Matrix *matrix,Matrix *inverseMatrix){
+void placeInverseMatrix(Matrix *matrix, Matrix *inverseMatrix){
 	Matrix m;
 	double copyBuf[matrix->numRows * matrix->numCols];
-	
-	int row, col, pos, otherRow;
-	/*Storing the working positions between two rows of the matrix*/
-	double *row1, *rowEnd, *row2;
-	double *irow1, *irow2;
-	
+	int rowCount = matrix->numRows;
+	int row, col, otherRow;
+	int pos;
 	double swap;
-	double scalar;
-	int numRows;
-	int numCols;
-	
-	/*Put an identity matrix in the place of the inverse matrix.*/
-	placeScaleMatrix(1,1,1,inverseMatrix);
+	double val;
+	double *rowPtr, *otherRowPtr, *rowEnd;
+	double *IrowPtr, *IotherRowPtr;
 	m.matrix = copyBuf;
 	placeMatrixCopy(matrix,&m);
 
-	numRows = m.numRows;
-	numCols = m.numCols;
-	/*Solving the given matrix.*/
-	for(row = 0;row < numRows;++row){
-		/*Look for nonzero row.*/
-		for(col = row;row < numRows; ++row){
-			pos = numCols*row + col;
-			if(*(copyBuf + pos) != 0.0)break;
+	placeScaleMatrix(1,1,1,inverseMatrix);
+	/*Using gaussian elimination to solve a copy to the first argument matrix.
+	 *Applying those same operations to an identity matrix to produce the inverse matrix.*/
+	for(row = 0;row < rowCount;++row){
+		col = row;
+		while(row < rowCount){
+			pos = rowCount * row + col;
+			val = *(m.matrix + pos);
+			if(val != 0.0)break;
+			++row;
 		}
-		if(row >= numRows){
-			return;
-		}
+		if(row == rowCount)return;
 
-		/*Swap the found row and the position where the row should go.*/
-		row1 = copyBuf + row * numCols;
-		row2 = copyBuf + col * numCols;
-		rowEnd = row1 + numRows;
+		val = 1.0 / val;
 
-		irow1 = inverseMatrix->matrix + row * numCols;
-		irow2 = inverseMatrix->matrix + col * numCols;
+		/*Swap row and col, and scalar divide the row so that col,col = 1*/
+		rowPtr = m.matrix + rowCount * col;
+		otherRowPtr = m.matrix + rowCount * row;
+		rowEnd = rowPtr + rowCount;
+
+
+		IrowPtr = inverseMatrix->matrix + rowCount * col;
+		IotherRowPtr = inverseMatrix->matrix + rowCount * row;
 		
-		/*Scalar divide the row by this value*/
-		scalar = 1.0 / *(row1 + col);
-		for(;row1 < rowEnd;++row1, ++row2, ++irow1, ++irow2){
-			/*Swap the rows in the matrix and apply the scalar multiplication to ensure we have a 1 in that column for this row.*/
-			swap = *row1;
-			*row1 = *row2;
-			*row2 = swap * scalar;
-			
-			/*Swap the rows in the soon-to-be inverse matrix and apply the scalar multiplication*/
-			swap = *irow1;
-			*irow1 = *irow2;
-			*irow2 = swap * scalar;
+		while(rowPtr < rowEnd){
+			swap = *rowPtr;
+			*rowPtr = (*otherRowPtr) * val;
+			*otherRowPtr = swap;
+
+			swap = *IrowPtr;
+			*IrowPtr = (*IotherRowPtr) * val;
+			*IotherRowPtr = swap;
+
+			++rowPtr; ++otherRowPtr; ++IrowPtr; ++IotherRowPtr;
 		}
 		row = col;
-		rowEnd = copyBuf + row * numCols + numCols;
-		for(otherRow = 0;otherRow < row;++otherRow){
-			scalar = *(copyBuf + (numRows * otherRow) + col);
-			
-			row1 = copyBuf + row * numCols;
-			row2 = copyBuf + otherRow * numCols; 
-	
-			irow1 = inverseMatrix->matrix + numRows*numCols;
-			irow2 = inverseMatrix->matrix + numRows*numCols;
-			for(;row1 < rowEnd;++row1, ++row2, ++irow1, ++irow2){
-				*row2 -= scalar * (*row1);
-				*irow2 -= scalar * (*irow1);
+
+		/*Make sure every other row has a zero for this column.*/
+		for(otherRow = 0;otherRow < col;++otherRow){
+			val = *(m.matrix + otherRow * rowCount + col);
+			rowPtr = m.matrix + rowCount * col;
+			otherRowPtr = m.matrix + rowCount * otherRow;
+		
+			rowEnd = rowPtr + rowCount;
+			IrowPtr = inverseMatrix->matrix + rowCount * col;
+			IotherRowPtr = inverseMatrix->matrix + rowCount * otherRow;
+
+			while(rowPtr < rowEnd){
+				*otherRowPtr -= ((*rowPtr) * val);
+				*IotherRowPtr -= ((*IrowPtr) * val);
+				++rowPtr; ++otherRowPtr; ++IrowPtr; ++IotherRowPtr;
 			}
 		}
-		for(otherRow = row + 1;otherRow < numRows;++otherRow){
-			scalar = *(copyBuf + (numRows * otherRow) + col);
+
+		for(otherRow = col+1;otherRow < rowCount;++otherRow){
+			val = *(m.matrix + otherRow * rowCount + col);
 			
-			row1 = copyBuf + row * numCols;
-			row2 = copyBuf + otherRow * numCols; 
-	
-			irow1 = inverseMatrix->matrix + numRows*numCols;
-			irow2 = inverseMatrix->matrix + numRows*numCols;
-			for(;row1 < rowEnd;++row1, ++row2, ++irow1, ++irow2){
-				*row2 -= scalar * (*row1);
-				*irow2 -= scalar * (*irow1);
+			rowPtr = m.matrix + rowCount * col;
+			otherRowPtr = m.matrix + rowCount * otherRow;
+
+			IrowPtr = inverseMatrix->matrix + rowCount * col;
+			IotherRowPtr = inverseMatrix->matrix + rowCount * otherRow;
+			
+			while(rowPtr < rowEnd){
+				*otherRowPtr -= ((*rowPtr) * val);
+				*IotherRowPtr -= ((*IrowPtr) * val);
+				++rowPtr; ++otherRowPtr; ++IrowPtr; ++IotherRowPtr;
 			}
+				
 		}
 	}
-}
+}	
 
 /**Allocates a scaling matrix with the given scaling attributes*/
 Matrix *scaleMatrix(double sX, double sY, double sZ){
@@ -149,7 +148,6 @@ Matrix *translationMatrix(double tX,double tY,double tZ){
 	Matrix *newMatrix = malloc(sizeof(Matrix));
 	newMatrix->matrix = malloc(sizeof(double) * 16);
 	placeTranslationMatrix(tX,tY,tZ,newMatrix);
-	printf("%d\n",sizeof(Matrix));
 	return newMatrix;
 }
 
@@ -315,8 +313,8 @@ void inPlaceScalarMultiply(Matrix *m, double c){
 /*Copies the product matrix of m1 and m2 into newMatrix, if one exists*/
 char placeProductMatrix(Matrix *m1,Matrix *m2,Matrix *newMatrix){
 	double *m, sum;
-	double *pos1, *pos2, p;
-	int row, col;
+	double *pos1, *pos2;
+	int row, col, p;
 	int maxRow, maxCol;
 	int m1Cols = m1->numCols;
 	int m2Rows = m2->numRows;
@@ -327,7 +325,7 @@ char placeProductMatrix(Matrix *m1,Matrix *m2,Matrix *newMatrix){
 	maxCol = m2->numCols;
 	newMatrix->numRows = maxRow;
 	newMatrix->numCols = maxCol;
-	/**Allocate the new matrix*/
+	/*Set the elements of the new matrix*/
 	m = newMatrix->matrix;
 	for(row = 0;row < maxRow; ++row){
 		for(col = 0;col < maxCol; ++col){
@@ -347,39 +345,10 @@ char placeProductMatrix(Matrix *m1,Matrix *m2,Matrix *newMatrix){
 }
 /*Generates the product matrix of m1 and m2, if one exists*/
 Matrix *getProductMatrix(Matrix *m1,Matrix *m2){
-	double *m, sum;
-	double *pos1, *pos2, p;
-	int row, col;
-	int maxRow, maxCol;
-	int m1Cols = m1->numCols;
-	int m2Rows = m2->numRows;
-	Matrix *newMatrix;
-	if(m1Cols != m2Rows){
-		return NULL;
-	}
-	maxRow = m1->numRows;
-	maxCol = m2->numCols;
-	/**Allocate the new matrix*/
-	m = malloc(sizeof(double) * (maxRow * maxCol));
-	for(row = 0;row < maxRow; ++row){
-		for(col = 0;col < maxCol; ++col){
-			pos1 = m1->matrix + row * m1Cols; 
-			pos2 = m2->matrix + col;
-			sum = 0.0;
-			for(p = 0;p < m1Cols;++p){
-				sum += (*pos1) * (*pos2);
-				++pos1;
-				pos2 += maxCol;
-			}
-			*m = sum;
-			++m;
-		}
-	}
 	/*Finalize the matrix structure that is returned.*/
-	newMatrix = malloc(sizeof(Matrix));
-	newMatrix->matrix = m;
-	newMatrix->numRows = maxRow;
-	newMatrix->numCols = maxCol;
+	Matrix *newMatrix = malloc(sizeof(Matrix));
+	newMatrix->matrix = malloc(sizeof(double) * 16);
+	placeProductMatrix(m1,m2,newMatrix);
 	return newMatrix;
 }
 /**Frees the heap resources used by the given matrix*/
@@ -391,15 +360,14 @@ void freeMatrix(Matrix *m){
 void placeMatrixCopy(Matrix *m1, Matrix *m2){
 	int numRows, numCols;
 	double *pos1, *pos2, *end;
-	pos1 = m1->matrix;
-	pos2 = m2->matrix;
 	
 	numRows = m1->numRows;
 	numCols = m1->numCols;
-	
 	m2->numRows = numRows;
 	m2->numCols = numCols;
 	
+	pos1 = m1->matrix;
+	pos2 = m2->matrix;
 	end = pos1 + numRows * numCols;
 	while(pos1 < end){
 		*pos2 = *pos1;
@@ -464,59 +432,39 @@ void printMatrix(Matrix *m){
 	for(i = 0;i < m->numRows * m->numCols;++i){
 		printf("| %.2f |%s",m->matrix[i],((i + 1) % m->numCols) == 0 ? "\n" : " ");
 	}
+	printf("\n");
 }
 int test(){
-	Matrix *m = translationMatrix(12,40,20);
-	Matrix *m2 = scaleMatrix(20,20,20);
+	//Matrix *m = translationMatrix(12,40,20);
 	printf("Running test...\n");
-	printMatrix(m);
-	printf("\n");
-	printMatrix(m2);
 	return 0;
 }
 int main(){
-	Matrix m, m2, m3, m4, m5, *mptr;
-	double list[16], list2[16], list3[16], list4[4], list5[4]; 
-	m.matrix = list;
-	m2.matrix = list2;
-	m3.matrix = list3;
-	m4.matrix = list4;
-	m5.matrix = list5;
-	printf("%ld\n",sizeof(Matrix));
-
-	placeTranslationMatrix(1,1,1,&m);
-	printMatrix(&m);
-	placeScaleMatrix(2,2,2,&m2);
-	
-	printf("\n");
-	printMatrix(&m2);
-	
-	/*Test product matrix function*/
-	placeProductMatrix(&m2,&m,&m3);
-	
-	printf("\n");
+	Matrix m1, m2, m3, m4, *m5;
+	Matrix *tmp;
+	double buf[16], buf2[16], buf3[16], buf4[16];
+	m1.matrix = buf;
+	m2.matrix = buf2;
+	m3.matrix = buf3;
+	m4.matrix = buf4;
+	placeTranslationMatrix(1,2,3,&m1);
+	placeScaleMatrix(1,2,3,&m2);
+	placeProductMatrix(&m1,&m2,&m3);
+	placeProductMatrix(&m2,&m1,&m4);
 	printMatrix(&m3);
-
-	mptr = getInverseMatrix(&m3);
-	printf("\n");
-	printMatrix(mptr);
-
-	placePoint4(5,5,5, &m4);
-	printf("\n");
 	printMatrix(&m4);
+
+	m5 = getProductMatrix(&m1,&m2);
+	printf("m5:\n");
+	printMatrix(m5);
 	
-	printf("\nBefore transpose:\n");
-	printMatrix(&m3);
+	tmp = getInverseMatrix(m5);
+	printf("inverse\n");
+	printMatrix(tmp);
 
-	inPlaceTranspose(&m3);
-
-	printf("\nAfter transpose:\n");
-	printMatrix(&m3);
-
-	placeProductMatrix(&m3,&m4,&m5);
-	printf("\n");
-	printMatrix(&m5);
-
+	printf("Product\n");
+	tmp = getProductMatrix(tmp,m5);
+	printMatrix(tmp);
 	test();
 	return 0;
 }

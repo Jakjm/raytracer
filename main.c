@@ -5,7 +5,7 @@
 /**Updating to allow the use of multithreading.*/
 #include <pthread.h>
 #include <time.h>
-#include "doubleMatrix.h"
+#include "matrix2.h"
 
 //@Author Jordan Malek
 
@@ -592,8 +592,6 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 	//Need to find the distance to the sphere, if a collision between the ray and the sphere exists. 
 	//Obtains the matrix of the sphere.
 	Matrix *m = s->inverseMatrix;
-	printMatrix(m);
-	printMatrix(s->inverseMatrix);
 	//Applying the matrix to the ray. 
 	ray = getProductMatrix(m,ray);
 
