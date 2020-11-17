@@ -292,6 +292,15 @@ int parseFile(char *fileName){
 			if(result != 1)return -1;
 			readOutput = 1;
 		}
+		//Allow the use of comments file.
+		else if(strchr(input,'#')){
+			if(!strchr(input,'\n')){
+				int tmp = fgetc(file);
+				while(tmp != '\n' && tmp != EOF){
+					tmp = fgetc(file);
+				}
+			}
+		}
 		//If one of these input descriptors was not read, the file format is not valid. Exit. 
 		else{
 			return -1;
@@ -501,18 +510,13 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	//We'll start making recursive calls...
 	if(s != NULL){
 		//Variables for making the color calculations of the pixel.
-		Matrix normal;
-		double normalBuf[4]; normal.matrix = normalBuf;
+		Matrix normal;double normalBuf[4]; normal.matrix = normalBuf;
+		Matrix colPoint; double colPointBuf[4]; colPoint.matrix = colPointBuf;
+		Matrix rayPrime; double rayPrimeBuf[4]; rayPrime.matrix = rayPrimeBuf;
+		Matrix originPrime; double originPrimeBuf[4]; originPrime.matrix = originPrimeBuf;
 		
-		Matrix colPoint;
-		double colPointBuf[4]; colPoint.matrix = colPointBuf;
-		
-		Matrix rayPrime;
-		double rayPrimeBuf[4]; rayPrime.matrix = rayPrimeBuf;
-		
-		Matrix originPrime;
-		double originPrimeBuf[4]; originPrime.matrix = originPrimeBuf;
 		double lightR, lightG, lightB;
+		
 		placeScalarMultipleMatrix(ray,&colPoint,t);
 		inPlaceSum(&colPoint,origin);
 		//Computing the ambient light.
@@ -545,7 +549,6 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		cR += lightR;
 		cG += lightG;
 		cB += lightB;
-		
 
 		//If the ray should be reflected, reflect it. Here goes nothing.
 		if(bounceCount > 0 && s->kR > 0.0){
