@@ -159,6 +159,7 @@ double dotProduct(Matrix *m1,Matrix *m2){
 	while(pos1 < end){
 		dotProd += ((*pos1) * (*pos2));
 		++pos1;
+		++pos2;
 	}
 	return dotProd;
 }
@@ -435,11 +436,6 @@ void printMatrix(Matrix *m){
 	printf("\n");
 }
 int test(){
-	//Matrix *m = translationMatrix(12,40,20);
-	printf("Running test...\n");
-	return 0;
-}
-int main(){
 	Matrix m1, m2, m3, m4, *m5;
 	Matrix *tmp;
 	double buf[16], buf2[16], buf3[16], buf4[16];
@@ -447,8 +443,11 @@ int main(){
 	m2.matrix = buf2;
 	m3.matrix = buf3;
 	m4.matrix = buf4;
+
 	placeTranslationMatrix(1,2,3,&m1);
+	printMatrix(&m1);
 	placeScaleMatrix(1,2,3,&m2);
+	printMatrix(&m2);
 	placeProductMatrix(&m1,&m2,&m3);
 	placeProductMatrix(&m2,&m1,&m4);
 	printMatrix(&m3);
@@ -462,9 +461,44 @@ int main(){
 	printf("inverse\n");
 	printMatrix(tmp);
 
+	printf("Inverse transpose\n");
+	inPlaceTranspose(tmp);
+	printMatrix(tmp);
+
 	printf("Product\n");
 	tmp = getProductMatrix(tmp,m5);
 	printMatrix(tmp);
-	test();
+	return 0;
+}
+int main4(){
+	Matrix m, m2;
+	double buf[4], buf2[4];
+	m.matrix = buf;
+	m2.matrix = buf2;
+	placeVec4(1,2,3,&m);
+	placeVec4(3,2,1,&m2);
+	printMatrix(&m);
+	printMatrix(&m2);
+	printf("%f\n",dotProduct(&m,&m2));
+	return 0;
+}
+int main2(){
+	double buf[4], buf2[4], buf3[4];
+	Matrix m, m2, m3;
+	//Matrix *m = translationMatrix(12,40,20);
+	printf("Running test...\n");
+	m.matrix = buf; m2.matrix = buf2; m3.matrix = buf3;
+	placePoint4(13,1,20,&m);
+	printMatrix(&m);
+	placeMatrixCopy(&m,&m2);
+	printMatrix(&m2);
+	inPlaceScalarMultiply(&m,4);
+	printMatrix(&m);
+	toPoint(&m);
+	printMatrix(&m);
+	inPlaceSum(&m,&m2);
+	inPlaceDifference(&m,&m2);
+	inPlaceDifference(&m,&m2);
+	printMatrix(&m);
 	return 0;
 }

@@ -594,7 +594,6 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 	Matrix *m = s->inverseMatrix;
 	//Applying the matrix to the ray. 
 	ray = getProductMatrix(m,ray);
-
 	//Applying the matrix to the origin of the vector.
 	origin = getProductMatrix(m,origin);
 	
