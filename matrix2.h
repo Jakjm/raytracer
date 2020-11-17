@@ -44,6 +44,7 @@ Matrix *translationMatrix(double,double,double);
 void placeMatrixCopy(Matrix *,Matrix *);
 void placeScaleMatrix(double, double, double, Matrix *);
 void placeTranslationMatrix(double,double,double,Matrix *);
+void placeScalarMultipleMatrix(Matrix *m,Matrix *m2,double scalar);
 //Vector functions
 double dotProduct(Matrix *,Matrix*);
 #endif

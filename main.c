@@ -499,39 +499,47 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	//We'll start making recursive calls...
 	if(s != NULL){
 		//Variables for making the color calculations of the pixel.
-		Matrix *normal = NULL;
-		Matrix *colPoint = getScalarMultipleMatrix(ray,t);
-		inPlaceSum(colPoint,origin);
-		Matrix *rayPrime = NULL;
-		Matrix *originPrime = NULL;
+		Matrix normal;
+		double normalBuf[4]; normal.matrix = normalBuf;
+		
+		Matrix colPoint;
+		double colPointBuf[4]; colPoint.matrix = colPointBuf;
+		
+		Matrix rayPrime;
+		double rayPrimeBuf[4]; rayPrime.matrix = rayPrimeBuf;
+		
+		Matrix originPrime;
+		double originPrimeBuf[4]; originPrime.matrix = originPrimeBuf;
 		double lightR, lightG, lightB;
+		placeScalarMultipleMatrix(ray,&colPoint,t);
+		inPlaceSum(&colPoint,origin);
 		//Computing the ambient light.
 		cR = s->kAmb * aR * s->r;
 		cG = s->kAmb * aG * s->g;
 		cB = s->kAmb * aB * s->b;	
 		
 		//Building the normal vector...
-		rayPrime = getProductMatrix(s->inverseMatrix,ray);
-		originPrime = getProductMatrix(s->inverseMatrix,origin);
+		placeProductMatrix(s->inverseMatrix,ray,&rayPrime);
+		placeProductMatrix(s->inverseMatrix,origin,&originPrime);
 	
 		//Getting the sum of the ray prime and the origin prime, then using the inverse transpose to generate the actual normal vector. 
 		//Getting the collision point with respect to the canonical sphere - origin plus t times the ray. 
-		inPlaceScalarMultiply(rayPrime,t);
-		inPlaceSum(rayPrime,originPrime);
-		toVector(rayPrime); //We want the vector with respect to the origin - but the origin is 0,0,0 so we can just knock off the point value. 
+		inPlaceScalarMultiply(&rayPrime,t);
+		inPlaceSum(&rayPrime,&originPrime);
+		toVector(&rayPrime); //We want the vector with respect to the origin - but the origin is 0,0,0 so we can just knock off the point value. 
 		//The normal is inverse transpose applied to the collision point minus (0,0,0) as a vector - but subtracing (0,0,0) is redundant so we skip that.  
-		normal = getProductMatrix(s->inverseTranspose,rayPrime);
-		toVector(normal);
+		placeProductMatrix(s->inverseTranspose,&rayPrime,&normal);
+		toVector(&normal);
 		//If the ray from the origin to collision point is longer than the vector from the origin to the center of the sphere,
 		//The normal should be flipped. 
-		inPlaceDifference(rayPrime,originPrime);
-		toVector(rayPrime);  
-		if(dotProduct(rayPrime,rayPrime) > dotProduct(originPrime,originPrime)){
-			inPlaceScalarMultiply(normal,-1);
+		inPlaceDifference(&rayPrime,&originPrime);
+		toVector(&rayPrime);  
+		if(dotProduct(&rayPrime,&rayPrime) > dotProduct(&originPrime,&originPrime)){
+			inPlaceScalarMultiply(&normal,-1);
 		}
 
 		//Light collision methods go here.
-		computeLightColor(colPoint,origin,normal,s,&lightR,&lightG,&lightB);
+		computeLightColor(&colPoint,origin,&normal,s,&lightR,&lightG,&lightB);
 		cR += lightR;
 		cG += lightG;
 		cB += lightB;
@@ -540,30 +548,26 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		//If the ray should be reflected, reflect it. Here goes nothing.
 		if(bounceCount > 0 && s->kR > 0.0){
 			double refR, refG, refB;
-			Matrix *reflectedRay;
-			Matrix *projection;
+
+			Matrix reflectedRay;
+			double reflectedRayBuffer[4];reflectedRay.matrix = reflectedRayBuffer;
+			Matrix projection;
+			double projectionBuffer[4];projection.matrix = projectionBuffer;
 			--bounceCount;
 
 			//calculating the projection of the ray onto the normal. 
-			projection = getScalarMultipleMatrix(normal,2 * ((dotProduct(ray,normal) / dotProduct(normal,normal))));
+			placeScalarMultipleMatrix(&normal,&projection,2 * ((dotProduct(ray,&normal) / dotProduct(&normal,&normal))));
 
 			//Calculating the reflected ray. 
-			reflectedRay = matrixCopy(ray);
-			inPlaceDifference(reflectedRay,projection);
+			placeMatrixCopy(ray,&reflectedRay);
+			//Subtract 2 times the normal from the reflected ray.
+			inPlaceDifference(&reflectedRay,&projection);
 
-			traceRay(reflectedRay,colPoint,bounceCount,&refR,&refG,&refB);
+			traceRay(&reflectedRay,&colPoint,bounceCount,&refR,&refG,&refB);
 			cR += (s->kR * refR);
 			cG += (s->kR * refG);
 			cB += (s->kR * refB);
-			
-			//Freeing the resources used here. 
-			freeMatrix(projection);
-			freeMatrix(reflectedRay);
 		}
-		freeMatrix(rayPrime);
-		freeMatrix(originPrime);
-		freeMatrix(colPoint);
-		freeMatrix(normal);
 	}
 	else{
 		//If this is a bounced ray, return black if there is no collision.
