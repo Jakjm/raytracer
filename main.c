@@ -589,22 +589,30 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 	double a,b,c;
 	double t = -1;
 	double det;
+
+	/*Allocate matrix for placing the product of m and ray, and m and origin.*/
+	Matrix rayCP, originCP;
+	double rayBuf[4], originBuf[4];
+	rayCP.matrix = rayBuf;
+	originCP.matrix = originBuf;
+
 	//Need to find the distance to the sphere, if a collision between the ray and the sphere exists. 
 	//Obtains the matrix of the sphere.
+	
 	Matrix *m = s->inverseMatrix;
 	//Applying the matrix to the ray. 
-	ray = getProductMatrix(m,ray);
+	placeProductMatrix(m,ray,&rayCP);
 	//Applying the matrix to the origin of the vector.
-	origin = getProductMatrix(m,origin);
+	placeProductMatrix(m,origin,&originCP);
 	
-	a = dotProduct(ray,ray);
-	b = dotProduct(origin,ray);
-	c = dotProduct(origin,origin) - 1;
+	a = dotProduct(&rayCP,&rayCP);
+	b = dotProduct(&originCP,&rayCP);
+	c = dotProduct(&originCP,&originCP) - 1;
 
 	det = b * b - a * c;
 	//If there is a collision between the sphere and the ray...
-	freeMatrix(ray);
-	freeMatrix(origin);
+	/*freeMatrix(ray);*/
+	/*freeMatrix(origin);*/
 	if(det >= 0.0){
 		//Compute the earlier collision with t > 0.
 		double rootDet = sqrt(det);
