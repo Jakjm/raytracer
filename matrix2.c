@@ -87,13 +87,13 @@ void placeInverseMatrix(Matrix *matrix, Matrix *inverseMatrix){
 		IotherRowPtr = inverseMatrix->matrix + rowCount * row;
 		
 		while(rowPtr < rowEnd){
-			swap = *rowPtr;
-			*rowPtr = (*otherRowPtr) * val;
-			*otherRowPtr = swap;
+			swap = *otherRowPtr;
+			*otherRowPtr = *rowPtr;
+			*rowPtr = swap * val;
 
-			swap = *IrowPtr;
-			*IrowPtr = (*IotherRowPtr) * val;
-			*IotherRowPtr = swap;
+			swap = *IotherRowPtr;
+			*IotherRowPtr = *IrowPtr;
+			*IrowPtr = swap * val;
 
 			++rowPtr; ++otherRowPtr; ++IrowPtr; ++IotherRowPtr;
 		}
