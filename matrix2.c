@@ -164,7 +164,7 @@ double dotProduct(Matrix *m1,Matrix *m2){
 	return dotProd;
 }
 /**Sets a 3 dimensional point with the given x,y,z position*/
-void placePoint4(double x,double y,double z,Matrix *newMatrix){
+void placePoint4(Matrix *newMatrix, double x,double y,double z){
 	double *m = newMatrix->matrix;
 	newMatrix->matrix = m;
 	newMatrix->numRows = 4;
@@ -197,7 +197,7 @@ Matrix *point4(double x,double y,double z){
 }
 
 /**Sets a 3 dimensional vector with the given x,y,z position*/
-void placeVec4(double x,double y,double z,Matrix *newMatrix){
+void placeVec4(Matrix *newMatrix,double x,double y,double z){
 	double *m = newMatrix->matrix;
 	newMatrix->matrix = m;
 	newMatrix->numRows = 4;
@@ -434,71 +434,4 @@ void printMatrix(Matrix *m){
 		printf("| %.2f |%s",m->matrix[i],((i + 1) % m->numCols) == 0 ? "\n" : " ");
 	}
 	printf("\n");
-}
-int test(){
-	Matrix m1, m2, m3, m4, *m5;
-	Matrix *tmp;
-	double buf[16], buf2[16], buf3[16], buf4[16];
-	m1.matrix = buf;
-	m2.matrix = buf2;
-	m3.matrix = buf3;
-	m4.matrix = buf4;
-
-	placeTranslationMatrix(1,2,3,&m1);
-	printMatrix(&m1);
-	placeScaleMatrix(1,2,3,&m2);
-	printMatrix(&m2);
-	placeProductMatrix(&m1,&m2,&m3);
-	placeProductMatrix(&m2,&m1,&m4);
-	printMatrix(&m3);
-	printMatrix(&m4);
-
-	m5 = getProductMatrix(&m1,&m2);
-	printf("m5:\n");
-	printMatrix(m5);
-	
-	tmp = getInverseMatrix(m5);
-	printf("inverse\n");
-	printMatrix(tmp);
-
-	printf("Inverse transpose\n");
-	inPlaceTranspose(tmp);
-	printMatrix(tmp);
-
-	printf("Product\n");
-	tmp = getProductMatrix(tmp,m5);
-	printMatrix(tmp);
-	return 0;
-}
-int main4(){
-	Matrix m, m2;
-	double buf[4], buf2[4];
-	m.matrix = buf;
-	m2.matrix = buf2;
-	placeVec4(1,2,3,&m);
-	placeVec4(3,2,1,&m2);
-	printMatrix(&m);
-	printMatrix(&m2);
-	printf("%f\n",dotProduct(&m,&m2));
-	return 0;
-}
-int main2(){
-	double buf[4], buf2[4], buf3[4];
-	Matrix m, m2, m3;
-	//Matrix *m = translationMatrix(12,40,20);
-	printf("Running test...\n");
-	m.matrix = buf; m2.matrix = buf2; m3.matrix = buf3;
-	placePoint4(13,1,20,&m);
-	printMatrix(&m);
-	placeMatrixCopy(&m,&m2);
-	printMatrix(&m2);
-	inPlaceScalarMultiply(&m,4);
-	printMatrix(&m);
-	toPoint(&m);
-	printMatrix(&m);
-	inPlaceSum(&m,&m2);
-	inPlaceDifference(&m,&m2);
-	inPlaceDifference(&m,&m2);
-	printMatrix(&m);
-	return 0;
 }

@@ -664,16 +664,18 @@ void *computePixelThread(void *encoding){
 	double planeX = (right - left) / cols;
 	double planeY = (bottom - top) / rows;
 
-	Matrix *eye;
-	Matrix *ray;
+	Matrix eye;
+	double eyeBuf[4];eye.matrix = eyeBuf;
+	Matrix ray;
+	double rayBuf[4];ray.matrix = rayBuf;
 
 	int x, y;
 	double rayX, rayY, rayZ;
 	double cR, cG, cB;
 
 	unsigned char *buffer = byteBuffer + (rowStart * cols * 3);
-	eye = vec4(0,0,0);
-	ray = vec4(0,0,0);
+	placePoint4(&eye,0,0,0);
+	placeVec4(&ray,0,0,0);
 	/**Render the pixels that have been assigned to this thread.*/
 	for(y = rowStart; y < rowEnd; ++y){
 		for(x = 0;x < cols; ++x){
@@ -681,10 +683,10 @@ void *computePixelThread(void *encoding){
 			rayX = (x + zeroX) * planeX;
 			rayY = (y + zeroY) * planeY;
 			rayZ = -near;
-			setVec4(ray,rayX,rayY,rayZ);
-			setPoint4(eye,0.0,0.0,0.0);
+			setVec4(&ray,rayX,rayY,rayZ);
+			setPoint4(&eye,0.0,0.0,0.0);
 			//Computing the pixel color.
-			traceRay(ray,eye,NUM_BOUNCES,&cR,&cG,&cB);
+			traceRay(&ray,&eye,NUM_BOUNCES,&cR,&cG,&cB);
 			
 			//Clamping the color, if the color has exceeded one. 
 			if(cR > 1.0)cR = 1.0;
@@ -700,8 +702,6 @@ void *computePixelThread(void *encoding){
 			++buffer;
 		}
 	}
-	freeMatrix(eye);
-	freeMatrix(ray);
 	return NULL;
 }
 void computePixels2(int threadCount){
