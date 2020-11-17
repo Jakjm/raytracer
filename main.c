@@ -388,35 +388,41 @@ void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s,
 	light *l;
 
 	//The ray from the collision point to the light source.
-	Matrix *ray;
+	Matrix ray;
+	double rayBuf[4]; ray.matrix = rayBuf;
 	for(i = 0;i < numLights;++i){
 		l = lightList[i];
 
 		//Computing a vector from the surface of the sphere to the light. 
-		ray = matrixCopy(l->lightPoint);
-		inPlaceDifference(ray,colPoint);
+		placeMatrixCopy(l->lightPoint,&ray);
+		inPlaceDifference(&ray,colPoint);
 
 		//Now, need to ensure there aren't any spheres in the way.
 		//In other words, need to check if there is a sphere in between the colPoint and the lightPoint
-		if(!existsCollision(colPoint,ray)){
+		if(!existsCollision(colPoint,&ray)){
 			//Need to compute light, as long as there was a true collision.
 			//Getting the dot product of the normal and the light ray. 
-			double dot = dotProduct(ray,normal);
+			double dot = dotProduct(&ray,normal);
 			
 			if(dot >= 0){
 				//Color placeholders. 
 				double specR,specG,specB;
 				double difR,difG,difB;
 				//The "r" vector;the light ray after it has been reflected on the surface using the normal.
-				Matrix *ref;
+				Matrix ref;
+				double refBuf[4]; ref.matrix = refBuf;
 				//The "v" vector;the viewing ray from the eye to the collision point. 
-				Matrix *viewRay;
-				Matrix *projection;
+				Matrix viewRay;
+				double viewRayBuf[4];viewRay.matrix = viewRayBuf;
+				/*Projectiion of the ray to calculate reflection*/
+				Matrix projection;
+				double projectionBuf[4];projection.matrix = projectionBuf;
+				
 				double shininess;
 				double spec,diff;
 
 				//Diminishing the dot product between the ray.
-				dot /= sqrt(dotProduct(ray,ray));
+				dot /= sqrt(dotProduct(&ray,&ray));
 				dot /= sqrt(dotProduct(normal,normal));
 
 				//Computing the diffuse light. 
@@ -426,25 +432,25 @@ void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s,
 				difB = diff * l->iB * s->b;
 
 				//Computing the reflection of the light ray on the surface. 
-				ref = getScalarMultipleMatrix(ray,-1);
-				dot = 2*dotProduct(ray,normal) / dotProduct(normal,normal);
-				projection = getScalarMultipleMatrix(normal,dot);
-				inPlaceSum(ref,projection);
+				placeScalarMultipleMatrix(&ray,&ref,-1);
+				dot = 2*dotProduct(&ray,normal) / dotProduct(normal,normal);
+				placeScalarMultipleMatrix(normal,&projection,dot);
+				inPlaceSum(&ref,&projection);
 
 				//Computing the viewing ray... 
 				//The viewing ray should be the vector from the collision point to the eye. 
-				viewRay = getScalarMultipleMatrix(colPoint,-1);
-				inPlaceSum(viewRay,origin);
-				toVector(viewRay);
+				placeScalarMultipleMatrix(colPoint,&viewRay,-1);
+				inPlaceSum(&viewRay,origin);
+				toVector(&viewRay);
 
 				//Computing the shininess coefficient. 
-				shininess = dotProduct(ref,viewRay);
+				shininess = dotProduct(&ref,&viewRay);
 				//If the shininess is zero, the reflected light ray and the view ray do not coincide. 
 				//So there is no specular light. 
 				if(shininess >= 0 && s->kSpec > 0.0){
 				//shininess = fabs(shininess);
-					shininess /= sqrt(dotProduct(ref,ref));
-					shininess /= sqrt(dotProduct(viewRay,viewRay));
+					shininess /= sqrt(dotProduct(&ref,&ref));
+					shininess /= sqrt(dotProduct(&viewRay,&viewRay));
 					shininess = pow(shininess,s->specExp);
 			
 				//Computing the specular light.
@@ -462,12 +468,8 @@ void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s,
 				cG += (difG + specG);
 				cB += (difB + specB);
 				
-				freeMatrix(projection);
-				freeMatrix(viewRay);
-				freeMatrix(ref);
 			}
 		}
-		freeMatrix(ray);
 	}
 	*red = cR;
 	*green = cG;
