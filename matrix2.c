@@ -3,18 +3,19 @@
 #include "doubleMatrix.h"
 /*Creating an improved version of the matrix library used by my raytracer.*/
 /*This should hopefully help me make considerable improvements to the runtime.*/
-typedef struct Matrix{
-	double *matrix;
-	int numRows;
-	int numCols;
-} Matrix;
-
 
 /*Places a scaling matrix with the given scaling attributes into newMatrix*/
 void placeScaleMatrix(double sX,double sY, double sZ, Matrix *newMatrix){
 	double *m = newMatrix->matrix;
+	double *mPos, *endM;
 	newMatrix->numRows = 4;
 	newMatrix->numCols = 4;
+
+	/*Zero the matrix*/
+	endM = m + 16;
+	for(mPos = m;mPos < endM;++mPos){
+		*mPos = 0.0;
+	}
 	/*Set the scaling attributes for the matrix.*/
 	*m = sX;
 	*(m+5) = sY;
@@ -24,9 +25,16 @@ void placeScaleMatrix(double sX,double sY, double sZ, Matrix *newMatrix){
 /*Places a translation matrix with the given translation attributes into newMatrix*/
 void placeTranslationMatrix(double tX,double tY, double tZ, Matrix *newMatrix){
 	double *m = newMatrix->matrix;
+	double *mPos, *endM;
 	newMatrix->numRows = 4;
 	newMatrix->numCols = 4;
-	/*Set the scaling attributes to 0.*/
+	
+	/*Zero the matrix.*/
+	endM = m + 16;
+	for(mPos = m;mPos < endM;++mPos){
+		*mPos = 0.0;
+	}
+	/*Set the matrix to an identity matrix, then add the translation attributes.*/
 	*m = 1;
 	*(m+5) = 1;
 	*(m+10) = 1;
@@ -131,32 +139,17 @@ void placeInverseMatrix(Matrix *matrix,Matrix *inverseMatrix){
 /**Allocates a scaling matrix with the given scaling attributes*/
 Matrix *scaleMatrix(double sX, double sY, double sZ){
 	Matrix *newMatrix = malloc(sizeof(Matrix));
-	double *m = calloc(sizeof(double),16);
+	double *m = malloc(sizeof(double) * 16);
 	newMatrix->matrix = m;
-	newMatrix->numRows = 4;
-	newMatrix->numCols = 4;
-	/*Set the scaling attributes for the matrix.*/
-	*m = sX;
-	*(m+5) = sY;
-	*(m+10) = sZ;
-	*(m+15) = 1;
+	placeScaleMatrix(sX,sY,sZ,newMatrix);
 	return newMatrix;
 }
 /**Allocates a translation matrix with the given translation attributes*/
 Matrix *translationMatrix(double tX,double tY,double tZ){
 	Matrix *newMatrix = malloc(sizeof(Matrix));
-	double *m = calloc(sizeof(double),16);
-	newMatrix->matrix = m;
-	newMatrix->numRows = 4;
-	newMatrix->numCols = 4;
-	/*Set the scaling attributes to 0.*/
-	*m = 1;
-	*(m+5) = 1;
-	*(m+10) = 1;
-	*(m+15) = 1;
-	*(m+3) = tX;
-	*(m+7) = tY;
-	*(m+11) = tZ;
+	newMatrix->matrix = malloc(sizeof(double) * 16);
+	placeTranslationMatrix(tX,tY,tZ,newMatrix);
+	printf("%d\n",sizeof(Matrix));
 	return newMatrix;
 }
 
@@ -188,8 +181,8 @@ void placePoint4(double x,double y,double z,Matrix *newMatrix){
 }
 /**Allocates a 3 dimensional point with the given x,y,z position*/
 Matrix *point4(double x,double y,double z){
-	double *m = malloc(sizeof(double) * 4);
 	Matrix *newMatrix = malloc(sizeof(Matrix));
+	double *m = malloc(sizeof(double) * 4);
 	newMatrix->numRows = 4;
 	newMatrix->numCols = 1;
 	newMatrix->matrix = m;
@@ -248,8 +241,8 @@ void toVector(Matrix *v){
 }
 /**Allocates a 3 dimensional vector, with the given x,y,z position.*/
 Matrix *vec4(double x,double y,double z){
-	double *m = malloc(sizeof(double) * 4);
 	Matrix *newMatrix = malloc(sizeof(Matrix));
+	double *m = malloc(sizeof(double) * 4);
 	newMatrix->numRows = 4;
 	newMatrix->numCols = 1;
 	newMatrix->matrix = m;
@@ -278,7 +271,7 @@ char inPlaceSum(Matrix *m1,Matrix *m2){
 	end = pos1 + m1->numRows * m1->numCols;
 	pos2 = m2->matrix;
 	while(pos1 < end){
-		sum = *pos1 + *pos2;
+		sum = (*pos1) + (*pos2);
 		*pos1 = sum;
 		++pos1; 
 		++pos2; 
@@ -299,7 +292,7 @@ char inPlaceDifference(Matrix *m1,Matrix *m2){
 	end = pos1 + m1->numRows * m1->numCols;
 	pos2 = m2->matrix;
 	while(pos1 < end){
-		difference = *pos1 - *pos2;
+		difference = (*pos1) - (*pos2);
 		*pos1 = difference;
 		++pos1; 
 		++pos2; 
@@ -374,7 +367,7 @@ Matrix *getProductMatrix(Matrix *m1,Matrix *m2){
 			pos2 = m2->matrix + col;
 			sum = 0.0;
 			for(p = 0;p < m1Cols;++p){
-				sum += *pos1 + *pos2;
+				sum += (*pos1) * (*pos2);
 				++pos1;
 				pos2 += maxCol;
 			}
@@ -447,7 +440,7 @@ void placeScalarMultipleMatrix(Matrix *m,Matrix *m2, double scalar){
 
 	pos1 = m->matrix;
 	pos2 = m2->matrix;
-	end = m->matrix + numRows * numCols;
+	end = pos1 + numRows * numCols;
 	while(pos1 < end){
 		*pos2 = *pos1 * scalar;
 		++pos1;
@@ -472,7 +465,16 @@ void printMatrix(Matrix *m){
 		printf("| %.2f |%s",m->matrix[i],((i + 1) % m->numCols) == 0 ? "\n" : " ");
 	}
 }
-int main2(){
+int test(){
+	Matrix *m = translationMatrix(12,40,20);
+	Matrix *m2 = scaleMatrix(20,20,20);
+	printf("Running test...\n");
+	printMatrix(m);
+	printf("\n");
+	printMatrix(m2);
+	return 0;
+}
+int main(){
 	Matrix m, m2, m3, m4, m5, *mptr;
 	double list[16], list2[16], list3[16], list4[4], list5[4]; 
 	m.matrix = list;
@@ -480,7 +482,8 @@ int main2(){
 	m3.matrix = list3;
 	m4.matrix = list4;
 	m5.matrix = list5;
-	
+	printf("%ld\n",sizeof(Matrix));
+
 	placeTranslationMatrix(1,1,1,&m);
 	printMatrix(&m);
 	placeScaleMatrix(2,2,2,&m2);
@@ -513,5 +516,7 @@ int main2(){
 	placeProductMatrix(&m3,&m4,&m5);
 	printf("\n");
 	printMatrix(&m5);
+
+	test();
 	return 0;
 }

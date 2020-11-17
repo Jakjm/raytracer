@@ -1,6 +1,12 @@
 #ifndef DOUBLE_MATRIX
 #define DOUBLE_MATRIX 1
-typedef struct Matrix Matrix;
+
+typedef struct Matrix{
+	double *matrix;
+	int numRows;
+	int numCols;
+} Matrix;
+
 void swapRows(Matrix *,int,int);
 void addRow(Matrix *,int ,int ,double );
 void subtractRow(Matrix *matrix,int differenceRow,int subtractedRow,double scalar);

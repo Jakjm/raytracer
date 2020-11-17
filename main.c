@@ -76,9 +76,9 @@ sphere *readSphere(FILE *fp){
 	
 	oval->matrix = getSphereMatrix(oval);
 	oval->inverseMatrix = getInverseMatrix(oval->matrix);
-
 	oval->inverseTranspose = matrixCopy(oval->inverseMatrix);
 	inPlaceTranspose(oval->inverseTranspose);
+	
 	return oval;
 }
 /*
@@ -592,7 +592,8 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 	//Need to find the distance to the sphere, if a collision between the ray and the sphere exists. 
 	//Obtains the matrix of the sphere.
 	Matrix *m = s->inverseMatrix;
-
+	printMatrix(m);
+	printMatrix(s->inverseMatrix);
 	//Applying the matrix to the ray. 
 	ray = getProductMatrix(m,ray);
 
