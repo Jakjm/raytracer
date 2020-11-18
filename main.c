@@ -14,6 +14,7 @@
 //Warning the compiler that I'll be defining these structs at some point.
 typedef struct sphere sphere;
 typedef struct light light;
+typedef struct cube cube;
 
 //Program variables....
 //Variable that says whether debug info should be printed or not.
@@ -30,7 +31,11 @@ int numSpheres = 0;
 
 //Lights in the scene
 int numLights = 0;
+
+//cubes in the scene.
+int numCubes = 0;
 light **lightList;
+cube **cubeList;
 sphere **sphereList;
 //Back color
 double r, g, b;
@@ -40,6 +45,13 @@ double aR, aG, aB;
 char *outputFile;
 unsigned char *byteBuffer;
 
+typedef struct cube {
+	double posX, posY, posZ;
+	double scaleX, scaleY, scaleZ;
+
+	Matrix *matrix;
+	Matrix *inverseMatrix;
+} cube;
 //Defining a structure for spheres. 
 typedef struct sphere{
 	//The name of the sphere. 
@@ -113,11 +125,19 @@ light *readLight(FILE *fp){
 
 	//Reading the name and the position of the light. Breaking if reading fails. 
 	result = fscanf(fp," %29s %lf %lf %lf ",lamp->name,&lamp->posX,&lamp->posY,&lamp->posZ);
-	if(result != 4)return NULL;
+	if(result != 4){
+		free(lamp->name);
+		free(lamp);
+		return NULL;
+	}
 
 	//Reading the intensity values of the light, and breaking if there is an error with the read. 
 	result = fscanf(fp," %lf %lf %lf ",&lamp->iR,&lamp->iG,&lamp->iB);
-	if(result != 3)return NULL;
+	if(result != 3){
+		free(lamp->name);
+		free(lamp);
+		return NULL;
+	}
 
 	lamp->lightPoint = point4(lamp->posX,lamp->posY,lamp->posZ);
 	return lamp;
@@ -136,7 +156,27 @@ void printLight(light *lamp){
 	printf("Light name: %s Position(%.1lf %.1lf %.1lf)\n",lamp->name,lamp->posX,lamp->posY,lamp->posZ);
 	printf("\t Intensity red: %.1lf green: %.1lf blue :%.1lf\n",lamp->iR,lamp->iG,lamp->iB);
 }
-
+Matrix *getCubeMatrix(cube *);
+cube *readCube(FILE *fp){
+	int result;
+	cube *c = malloc(sizeof(cube));
+	result = fscanf(fp," %lf %lf %lf %lf %lf %lf ",&c->posX,&c->posY,&c->posZ,&c->scaleX,&c->scaleY,&c->scaleZ);
+	if(result != 6){
+		free(c);
+		return NULL;
+	}
+	c->matrix = getCubeMatrix(c);
+	c->inverseMatrix = getInverseMatrix(c->matrix);
+	return c;
+}
+void printCube(cube *c){
+	printf("Cube Position(%.1lf %.1lf %.1lf)\n",c->posX,c->posY,c->posZ);
+}
+void freeCube(cube *c){
+	freeMatrix(c->matrix);
+	freeMatrix(c->inverseMatrix);
+	free(c);
+}
 //Void for producing smaller versions of the lists, if possible.
 void trimLists(){
 	int i;
@@ -155,6 +195,14 @@ void trimLists(){
 		}
 		free(lightList);
 		lightList = dummy2;
+	}
+	if(numCubes < 15){
+		cube **dummy3 = malloc(sizeof(cube*) * numCubes);
+		for(i = 0;i < numCubes;++i){
+			dummy3[i] = cubeList[i];
+		}
+		free(cubeList);
+		cubeList = dummy3;
 	}
 }
 //Printing the results of the parsing of the file. 
@@ -178,6 +226,13 @@ void printParsedFile(char* fileName){
 		printf("\n");
 		for(i = 0;i < numLights;++i){
 			printLight(lightList[i]);
+		}
+		printf("\n");
+	}
+	if(numCubes > 0){
+		printf("\n");
+		for(i = 0;i < numCubes;++i){
+			printCube(cubeList[i]);
 		}
 		printf("\n");
 	}
@@ -206,7 +261,8 @@ int parseFile(char *fileName){
 	//Initializing lists
 	sphereList = malloc(sizeof(sphere *) * 15);
 	lightList = malloc(sizeof(light *) * 10);
-	
+	cubeList = malloc(sizeof(cube *) * 15);
+
 	//Opening file, returning with an error if file does not open
 	FILE *file = fopen(fileName,"r");
 	if(file == NULL)return -1;
@@ -261,6 +317,16 @@ int parseFile(char *fileName){
 			if(s == NULL)return -1;
 			sphereList[numSpheres] = s;
 			++numSpheres; 
+		}
+		else if(strcmp(input,"CUBE") == 0){
+			if(numCubes >= 15){
+				fprintf(stderr,"::Too many cubes. \n::There is a limit of 15 based on the given specifications.\n\n");
+				return -1;
+			}
+			cube *c = readCube(file);
+			if(c == NULL)return -1;
+			cubeList[numCubes] = c;
+			++numCubes;
 		}
 		//Read a light, up to 10 times. 
 		else if(strcmp(input,"LIGHT") == 0){
@@ -353,6 +419,13 @@ void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
 	fclose(fp);
 	endTime = clock();
 	if(verbose)printf("Writing: clock time: %ld clocks per sec: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
+}
+Matrix *getCubeMatrix(cube *c){
+	Matrix scale; double scaleBuffer[16]; scale.matrix = scaleBuffer;
+	Matrix translation; double translationBuffer[16]; translation.matrix = translationBuffer;
+	placeTranslationMatrix(c->posX,c->posY,c->posZ,&translation);
+	placeScaleMatrix(c->scaleX,c->scaleY,c->scaleZ,&scale);
+	return getProductMatrix(&translation,&scale);
 }
 //Gets the transformation matrix for the current sphere. 
 Matrix *getSphereMatrix(sphere *s){
@@ -748,6 +821,10 @@ void freeLists(){
 		freeLight(lightList[i]);
 	}
 	free(lightList);
+	for(i = 0;i < numCubes;++i){
+		freeCube(cubeList[i]);
+	}
+	free(cubeList);
 }
 //Main function of the program. 
 int main(int argc,char **argv){
