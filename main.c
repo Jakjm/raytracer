@@ -438,6 +438,7 @@ Matrix *getSphereMatrix(sphere *s){
 }
 double computeTToSphere(Matrix*ray,Matrix *origin,sphere *s,double minimum);
 
+double computeTToCube(Matrix*ray,Matrix *origin,cube *s,double minimum);
 /**Checks if there is a sphere in the way of this shadow ray on its way to a light source.
  * Used for checking if this spot should get some extra lighting.
  * */
@@ -564,19 +565,28 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	sphere *s = NULL;
 	double t;
 	double lowestT = 2020202020202020;
-
+	int i;
+	cube *c = NULL;
 	//Computing the closest sphere intersection with the ray. 
 	double minimum = MINIMUM_T;
 	if(bounceCount == NUM_BOUNCES){
 		minimum = 1 + MINIMUM_T;
 	}
-	for(int i = 0;i < numSpheres;++i){
+	for(i = 0;i < numSpheres;++i){
 		//Need to compute the normal here...
 		t = computeTToSphere(ray,origin,sphereList[i],minimum);
 		//If t is smaller than the lowest T so far, we take it. 
 		if(t > minimum && t < lowestT){
 			lowestT = t;
 			s = sphereList[i];
+		}
+	}
+	for(i = 0;i < numCubes;++i){
+		t = computeTToCube(ray,origin,cubeList[i],minimum);
+		if(t > minimum && t < lowestT){
+			lowestT = t;
+			s = NULL;
+			c = cubeList[i];
 		}
 	}
 	t = lowestT;
@@ -648,6 +658,12 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			cB += (s->kR * refB);
 		}
 	}
+	/*Do stuff for cubes...*/
+	else if(c != NULL){
+		cR = 0.0;
+		cG = 0.0;
+		cB = 0.0;
+	}
 	else{
 		//If this is a bounced ray, return black if there is no collision.
 		if(bounceCount < NUM_BOUNCES){
@@ -670,23 +686,44 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 double computeTToCube(Matrix *ray,Matrix *origin,cube *c,double minimum){
 	/*Allocate matrix for placing the product of m and ray, and m and origin.*/
 	Matrix rayCP, originCP, normal, surface;
+	Matrix colPoint;
+	double colPtBuf[4];colPoint.matrix = colPtBuf;
 	double rayBuf[4], originBuf[4], n1Buf[4], surBuf[4];
-	double originProj, rayProj;
+	double originProj, rayProj, surProj;
+	double t;
 	rayCP.matrix = rayBuf;
 	originCP.matrix = originBuf;
 	normal.matrix = n1Buf;
 	surface.matrix = surBuf;
+	
 
 	/*Apply the inverse matrix of the cube to the origin and the ray.*/
 	placeProductMatrix(c->inverseMatrix,ray,&rayCP);
 	placeProductMatrix(c->inverseMatrix,origin,&originCP);
+	/*|normal| = 1 so no need to divide by |normal|^2.*/
 	placeVec4(&normal,0,0,1);
 	placePoint4(&surface,0,0,1);
-	originProj = dotProduct(&originCP,&normal) / dotProduct(&normal,&normal);
-	rayProj = dotProduct(&rayCP,&normal) / dotProduct(&normal,&normal);
-	inPlaceScalarMultiply(&rayCP,abs(originProj / rayProj)); 
-	
-	return -20;
+	originProj = dotProduct(&originCP,&normal);
+	rayProj = dotProduct(&rayCP,&normal);
+	surProj = dotProduct(&surface,&normal);
+	t = (surProj - originProj) / rayProj;
+
+	/*T should be negative.*/
+	if(t > 0){
+		/*Flip t.*/
+		placeScalarMultipleMatrix(&rayCP,&colPoint,t);
+		printMatrix(&colPoint);
+		inPlaceSum(&colPoint,&originCP);
+		printMatrix(&colPoint);
+		if(colPtBuf[0] < -1 || colPtBuf[0] > 1){
+			return -t;
+		}
+		else if(colPtBuf[1] < -1 || colPtBuf[1] > 1){
+			return -t;
+		}
+	}
+	/*printMatrix(&colPoint)*/
+	return t;
 }
 //Traces the given ray to the given sphere,
 //from the given starting point. 
