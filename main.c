@@ -462,6 +462,7 @@ int existsCollision(Matrix *origin,Matrix *ray){
 //the colPoint is the point of collision with the surface. 
 //the normal is the normal vector of collision with the surface
 //s is the sphere. 
+//TODO: this method can be easily adapted to both spheres and cubes by just inputting the lighting parameters instead of the kind of matrix.
 //origin is the observing point - but this changes as rays are traced.
 //returns the sum of all the light colors. 
 void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s, double *red,double *green,double *blue){
@@ -665,6 +666,28 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	*green = cG;
 	*blue = cB;
 }
+//TODO.... work in progress....
+double computeTToCube(Matrix *ray,Matrix *origin,cube *c,double minimum){
+	/*Allocate matrix for placing the product of m and ray, and m and origin.*/
+	Matrix rayCP, originCP, normal, surface;
+	double rayBuf[4], originBuf[4], n1Buf[4], surBuf[4];
+	double originProj, rayProj;
+	rayCP.matrix = rayBuf;
+	originCP.matrix = originBuf;
+	normal.matrix = n1Buf;
+	surface.matrix = surBuf;
+
+	/*Apply the inverse matrix of the cube to the origin and the ray.*/
+	placeProductMatrix(c->inverseMatrix,ray,&rayCP);
+	placeProductMatrix(c->inverseMatrix,origin,&originCP);
+	placeVec4(&normal,0,0,1);
+	placePoint4(&surface,0,0,1);
+	originProj = dotProduct(&originCP,&normal) / dotProduct(&normal,&normal);
+	rayProj = dotProduct(&rayCP,&normal) / dotProduct(&normal,&normal);
+	inPlaceScalarMultiply(&rayCP,abs(originProj / rayProj)); 
+	
+	return -20;
+}
 //Traces the given ray to the given sphere,
 //from the given starting point. 
 double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
@@ -681,11 +704,10 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 	//Need to find the distance to the sphere, if a collision between the ray and the sphere exists. 
 	//Obtains the matrix of the sphere.
 	
-	Matrix *m = s->inverseMatrix;
 	//Applying the matrix to the ray. 
-	placeProductMatrix(m,ray,&rayCP);
+	placeProductMatrix(s->inverseMatrix,ray,&rayCP);
 	//Applying the matrix to the origin of the vector.
-	placeProductMatrix(m,origin,&originCP);
+	placeProductMatrix(s->inverseMatrix,origin,&originCP);
 	
 	a = dotProduct(&rayCP,&rayCP);
 	b = dotProduct(&originCP,&rayCP);
