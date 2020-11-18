@@ -18,6 +18,7 @@ char inPlaceSum(Matrix *,Matrix *);
 char inPlaceDifference(Matrix *,Matrix*);
 char inPlaceInverse(Matrix *);
 void freeMatrix(Matrix *m);
+void toPoint(Matrix *m);
 void toVector(Matrix *m);
 void inPlaceScalarMultiply(Matrix *,double);
 void printMatrix(Matrix *);

@@ -682,48 +682,80 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	*green = cG;
 	*blue = cB;
 }
+Matrix **cubeMatricies;
+int numCubeMatricies = 6;
+void makeCubeMatricies(){
+	Matrix **mList;
+	cubeMatricies = malloc(sizeof(Matrix*) * numCubeMatricies);
+	mList = cubeMatricies;
+	*mList = vec4(-1.0,0.0,0.0);
+	++mList;
+	*mList = vec4(1.0,0.0,0.0);
+	++mList;
+	*mList = vec4(0.0,-1.0,0.0);
+	++mList;
+	*mList = vec4(0.0,1.0,0.0);
+	++mList;
+	*mList = vec4(0.0,0.0,-1.0);
+	++mList;
+	*mList = vec4(0.0,0.0,1.0);
+}
 //TODO.... work in progress....
 double computeTToCube(Matrix *ray,Matrix *origin,cube *c,double minimum){
 	/*Allocate matrix for placing the product of m and ray, and m and origin.*/
-	Matrix rayCP, originCP, normal, surface;
+	Matrix rayCP, originCP, *normal, surface;
 	Matrix colPoint;
 	double colPtBuf[4];colPoint.matrix = colPtBuf;
-	double rayBuf[4], originBuf[4], n1Buf[4], surBuf[4];
+	double rayBuf[4], originBuf[4], surBuf[4];
 	double originProj, rayProj, surProj;
-	double t;
+	double minT, t;
 	rayCP.matrix = rayBuf;
 	originCP.matrix = originBuf;
-	normal.matrix = n1Buf;
 	surface.matrix = surBuf;
+	int i;
+	minT = -1;
 	
-
-	/*Apply the inverse matrix of the cube to the origin and the ray.*/
-	placeProductMatrix(c->inverseMatrix,ray,&rayCP);
 	placeProductMatrix(c->inverseMatrix,origin,&originCP);
-	/*|normal| = 1 so no need to divide by |normal|^2.*/
-	placeVec4(&normal,0,0,1);
-	placePoint4(&surface,0,0,1);
-	originProj = dotProduct(&originCP,&normal);
-	rayProj = dotProduct(&rayCP,&normal);
-	surProj = dotProduct(&surface,&normal);
-	t = (surProj - originProj) / rayProj;
+	placeProductMatrix(c->inverseMatrix,ray,&rayCP);
+	for(i = 0;i < numCubeMatricies;++i){
+		normal = cubeMatricies[i];
+		placeMatrixCopy(normal,&surface);
+		toPoint(&surface);
 
-	/*T should be negative.*/
-	if(t > 0){
-		/*Flip t.*/
-		placeScalarMultipleMatrix(&rayCP,&colPoint,t);
-		printMatrix(&colPoint);
-		inPlaceSum(&colPoint,&originCP);
-		printMatrix(&colPoint);
-		if(colPtBuf[0] < -1 || colPtBuf[0] > 1){
-			return -t;
-		}
-		else if(colPtBuf[1] < -1 || colPtBuf[1] > 1){
-			return -t;
+		originProj = dotProduct(&originCP,normal);
+		rayProj = dotProduct(&rayCP,normal);
+		surProj = dotProduct(&surface,normal);
+		t = (surProj - originProj) / rayProj;
+		if(t > minimum){
+			int a, b;
+			placeScalarMultipleMatrix(&rayCP,&colPoint,t);
+			inPlaceSum(&colPoint,&originCP);
+			if(i < 2){
+				a = 1;
+				b = 2;
+			}
+			else if(i < 4){
+				a = 0;
+				b = 2;
+			}
+			else{
+				a = 0;
+				b = 1;
+			}
+			if((colPtBuf[a] >= -1.0 && colPtBuf[a] <= 1.0) && (colPtBuf[b] >= -1.0 && colPtBuf[b] <= 1.0)){
+				if(minT > 0){
+					if(minT < t){
+						minT = t;
+					}
+				}
+				else{
+					minT = t;
+				}
+			}
 		}
 	}
 	/*printMatrix(&colPoint)*/
-	return t;
+	return minT;
 }
 //Traces the given ray to the given sphere,
 //from the given starting point. 
@@ -752,8 +784,6 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 
 	det = b * b - a * c;
 	//If there is a collision between the sphere and the ray...
-	/*freeMatrix(ray);*/
-	/*freeMatrix(origin);*/
 	if(det >= 0.0){
 		//Compute the earlier collision with t > 0.
 		double rootDet = sqrt(det);
@@ -884,6 +914,10 @@ void freeLists(){
 		freeCube(cubeList[i]);
 	}
 	free(cubeList);
+	for(i = 0;i < numCubeMatricies;++i){
+		freeMatrix(cubeMatricies[i]);
+	}
+	free(cubeMatricies);
 }
 //Main function of the program. 
 int main(int argc,char **argv){
@@ -923,7 +957,7 @@ int main(int argc,char **argv){
 		}
 		++argv;
 	}
-
+	makeCubeMatricies();
 	createImageArray();
 	computePixels2(numThreads);
 	//Freeing the lists of lights and spheres. 
