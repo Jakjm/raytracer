@@ -464,12 +464,13 @@ Matrix *getSphereMatrix(sphere *s){
 }
 double computeTToSphere(Matrix*ray,Matrix *origin,sphere *s,double minimum);
 
-double computeTToCube(Matrix*ray,Matrix *origin,cube *s,double minimum);
-/**Checks if there is a sphere in the way of this shadow ray on its way to a light source.
+double computeTToCube(Matrix*ray,Matrix *origin,Matrix *normal,cube *s,double minimum);
+/**Checks if there is a sphere or a cube in the way of this shadow ray on its way to a light source.
  * Used for checking if this spot should get some extra lighting.
  * */
 int existsCollision(Matrix *origin,Matrix *ray){
 	sphere *s;
+	cube *c;
 	double t;
 	sphere **list = sphereList;
 	sphere **listEnd = sphereList + numSpheres;
@@ -481,6 +482,16 @@ int existsCollision(Matrix *origin,Matrix *ray){
 			return 1;
 		}
 		++list;
+	}
+	cube **list2 = cubeList;
+	cube **list2End = cubeList + numCubes;
+	while(list2 < list2End){
+		c = *list2;
+		t = computeTToCube(ray,origin,NULL,c,MINIMUM_T);
+		if(t >= MINIMUM_T && t <= 1.0 - MINIMUM_T){
+			return 1;
+		}
+		++list2;	
 	}
 	return 0;
 }
@@ -593,6 +604,7 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	double lowestT = 2020202020202020;
 	int i;
 	cube *c = NULL;
+	Matrix normal; double normalBuf[4]; normal.matrix = normalBuf;
 	//Computing the closest sphere intersection with the ray. 
 	double minimum = MINIMUM_T;
 	if(bounceCount == NUM_BOUNCES){
@@ -608,7 +620,7 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		}
 	}
 	for(i = 0;i < numCubes;++i){
-		t = computeTToCube(ray,origin,cubeList[i],minimum);
+		t = computeTToCube(ray,origin,&normal,cubeList[i],minimum);
 		if(t > minimum && t < lowestT){
 			lowestT = t;
 			s = NULL;
@@ -620,7 +632,6 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	//We'll start making recursive calls...
 	if(s != NULL){
 		//Variables for making the color calculations of the pixel.
-		Matrix normal;double normalBuf[4]; normal.matrix = normalBuf;
 		Matrix colPoint; double colPointBuf[4]; colPoint.matrix = colPointBuf;
 		Matrix rayPrime; double rayPrimeBuf[4]; rayPrime.matrix = rayPrimeBuf;
 		Matrix originPrime; double originPrimeBuf[4]; originPrime.matrix = originPrimeBuf;
@@ -637,7 +648,7 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		//Building the normal vector...
 		placeProductMatrix(s->inverseMatrix,ray,&rayPrime);
 		placeProductMatrix(s->inverseMatrix,origin,&originPrime);
-	
+		
 		//Getting the sum of the ray prime and the origin prime, then using the inverse transpose to generate the actual normal vector. 
 		//Getting the collision point with respect to the canonical sphere - origin plus t times the ray. 
 		inPlaceScalarMultiply(&rayPrime,t);
@@ -686,9 +697,10 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	}
 	/*Do stuff for cubes...*/
 	else if(c != NULL){
-		cR = 0.0;
-		cG = 0.0;
-		cB = 0.0;
+		//Computing the ambient light.
+		cR = c->kAmb * aR * c->r;
+		cG = c->kAmb * aG * c->g;
+		cB = c->kAmb * aB * c->b;	
 	}
 	else{
 		//If this is a bounced ray, return black if there is no collision.
@@ -727,7 +739,7 @@ void makeCubeMatricies(){
 	*mList = vec4(0.0,0.0,1.0);
 }
 //TODO.... work in progress....
-double computeTToCube(Matrix *ray,Matrix *origin,cube *c,double minimum){
+double computeTToCube(Matrix *ray,Matrix *origin,Matrix *normalReturn,cube *c,double minimum){
 	/*Allocate matrix for placing the product of m and ray, and m and origin.*/
 	Matrix rayCP, originCP, *normal, surface;
 	Matrix colPoint;
@@ -772,15 +784,16 @@ double computeTToCube(Matrix *ray,Matrix *origin,cube *c,double minimum){
 				if(minT > 0){
 					if(minT < t){
 						minT = t;
+						if(normalReturn != NULL)placeMatrixCopy(normal,normalReturn);
 					}
 				}
 				else{
 					minT = t;
+					if(normalReturn != NULL)placeMatrixCopy(normal,normalReturn);
 				}
 			}
 		}
 	}
-	/*printMatrix(&colPoint)*/
 	return minT;
 }
 //Traces the given ray to the given sphere,

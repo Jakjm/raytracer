@@ -7,7 +7,7 @@ RES 500 500
 # sp	  x y  z sX sY sZ r g  b ka kd ks kr n
 # cube x y z sX sY sZ
 SPHERE haha -3 0 -13 2 2 2 1 1 1 1 1 1 1 20
-CUBE 3 3 -10 1 1 1 0.0 0.7 1 1 1 1 1 1 1 20
+CUBE 3 3 -10 1 1 1 0.0 0.7 1 0 0 1 1 1 1 20
 LIGHT l1 0 0 0 0.9 0.9 0.9
 LIGHT l2 10 10 -10 0.9 0.9 0
 LIGHT l3 -10 5 -5 0 0 0.9
