@@ -503,7 +503,7 @@ int existsCollision(Matrix *origin,Matrix *ray){
 //TODO: this method can be easily adapted to both spheres and cubes by just inputting the lighting parameters instead of the kind of matrix.
 //origin is the observing point - but this changes as rays are traced.
 //returns the sum of all the light colors. 
-void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s, double *red,double *green,double *blue){
+void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,double r, double g, double b, double kDif, double kSpec, int specExp, double *red,double *green,double *blue){
 	double cR = 0.0,cG = 0.0,cB = 0.0;
 	int i;
 	light *l;
@@ -547,10 +547,10 @@ void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s,
 				dot /= sqrt(dotProduct(normal,normal));
 
 				//Computing the diffuse light. 
-				diff = dot * s->kDif;
-				difR = diff * l->iR * s->r;
-			       	difG = diff * l->iG * s->g;
-				difB = diff * l->iB * s->b;
+				diff = dot * kDif;
+				difR = diff * l->iR * r;
+			       	difG = diff * l->iG * g;
+				difB = diff * l->iB * b;
 
 				//Computing the reflection of the light ray on the surface. 
 				placeScalarMultipleMatrix(&ray,&ref,-1);
@@ -568,14 +568,14 @@ void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,sphere *s,
 				shininess = dotProduct(&ref,&viewRay);
 				//If the shininess is zero, the reflected light ray and the view ray do not coincide. 
 				//So there is no specular light. 
-				if(shininess >= 0 && s->kSpec > 0.0){
+				if(shininess >= 0 && kSpec > 0.0){
 				//shininess = fabs(shininess);
 					shininess /= sqrt(dotProduct(&ref,&ref));
 					shininess /= sqrt(dotProduct(&viewRay,&viewRay));
-					shininess = pow(shininess,s->specExp);
+					shininess = pow(shininess,specExp);
 			
 				//Computing the specular light.
-					spec = shininess * s->kSpec;
+					spec = shininess * kSpec;
 					specR = spec * l->iR;
 					specG = spec * l->iG;
 					specB = spec * l->iB;
@@ -604,6 +604,7 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	double lowestT = 2020202020202020;
 	int i;
 	cube *c = NULL;
+	Matrix potentialNormal; double pNormalBuf[4];potentialNormal.matrix = pNormalBuf;
 	Matrix normal; double normalBuf[4]; normal.matrix = normalBuf;
 	//Computing the closest sphere intersection with the ray. 
 	double minimum = MINIMUM_T;
@@ -620,87 +621,106 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		}
 	}
 	for(i = 0;i < numCubes;++i){
-		t = computeTToCube(ray,origin,&normal,cubeList[i],minimum);
+		t = computeTToCube(ray,origin,&potentialNormal,cubeList[i],minimum);
 		if(t > minimum && t < lowestT){
 			lowestT = t;
 			s = NULL;
 			c = cubeList[i];
+			placeMatrixCopy(&potentialNormal, &normal);
 		}
 	}
 	t = lowestT;
-	//There's a collision if we get inside this statement....
-	//We'll start making recursive calls...
-	if(s != NULL){
-		//Variables for making the color calculations of the pixel.
-		Matrix colPoint; double colPointBuf[4]; colPoint.matrix = colPointBuf;
-		Matrix rayPrime; double rayPrimeBuf[4]; rayPrime.matrix = rayPrimeBuf;
-		Matrix originPrime; double originPrimeBuf[4]; originPrime.matrix = originPrimeBuf;
-		
+	if(s != NULL || c != NULL){
+		double r, g, b, kDif, kSpec, kRef;
+		int specExp;
 		double lightR, lightG, lightB;
-		
+		/*Calculate the collision point...*/
+		Matrix colPoint; double colPointBuf[4]; colPoint.matrix = colPointBuf;
 		placeScalarMultipleMatrix(ray,&colPoint,t);
 		inPlaceSum(&colPoint,origin);
-		//Computing the ambient light.
-		cR = s->kAmb * aR * s->r;
-		cG = s->kAmb * aG * s->g;
-		cB = s->kAmb * aB * s->b;	
+
+		//There's a collision if we get inside this statement....
+		//We'll start making recursive calls...
+		if(s != NULL){
+			r = s->r;
+			g = s->g;
+			b = s->b;
+			kDif = s->kDif;
+			kSpec = s->kSpec;
+			kRef = s->kR;
+			specExp = s->specExp;
+			//Variables for making the color calculations of the pixel.
+			Matrix rayPrime; double rayPrimeBuf[4]; rayPrime.matrix = rayPrimeBuf;
+			Matrix originPrime; double originPrimeBuf[4]; originPrime.matrix = originPrimeBuf;
 		
-		//Building the normal vector...
-		placeProductMatrix(s->inverseMatrix,ray,&rayPrime);
-		placeProductMatrix(s->inverseMatrix,origin,&originPrime);
 		
-		//Getting the sum of the ray prime and the origin prime, then using the inverse transpose to generate the actual normal vector. 
-		//Getting the collision point with respect to the canonical sphere - origin plus t times the ray. 
-		inPlaceScalarMultiply(&rayPrime,t);
-		inPlaceSum(&rayPrime,&originPrime);
-		toVector(&rayPrime); //We want the vector with respect to the origin - but the origin is 0,0,0 so we can just knock off the point value. 
-		//The normal is inverse transpose applied to the collision point minus (0,0,0) as a vector - but subtracing (0,0,0) is redundant so we skip that.  
-		placeProductMatrix(s->inverseTranspose,&rayPrime,&normal);
-		toVector(&normal);
-		//If the ray from the origin to collision point is longer than the vector from the origin to the center of the sphere,
-		//The normal should be flipped. 
-		inPlaceDifference(&rayPrime,&originPrime);
-		toVector(&rayPrime);  
-		if(dotProduct(&rayPrime,&rayPrime) > dotProduct(&originPrime,&originPrime)){
-			inPlaceScalarMultiply(&normal,-1);
+			//Computing the ambient light.
+			cR = s->kAmb * aR * s->r;
+			cG = s->kAmb * aG * s->g;
+			cB = s->kAmb * aB * s->b;	
+		
+			//Building the normal vector...
+			placeProductMatrix(s->inverseMatrix,ray,&rayPrime);
+			placeProductMatrix(s->inverseMatrix,origin,&originPrime);
+		
+			//Getting the sum of the ray prime and the origin prime, then using the inverse transpose to generate the actual normal vector. 
+			//Getting the collision point with respect to the canonical sphere - origin plus t times the ray. 
+			inPlaceScalarMultiply(&rayPrime,t);
+			inPlaceSum(&rayPrime,&originPrime);
+			toVector(&rayPrime); //We want the vector with respect to the origin - but the origin is 0,0,0 so we can just knock off the point value. 
+			//The normal is inverse transpose applied to the collision point minus (0,0,0) as a vector - but subtracing (0,0,0) is redundant so we skip that.  
+			placeProductMatrix(s->inverseTranspose,&rayPrime,&normal);
+			toVector(&normal);
+			//If the ray from the origin to collision point is longer than the vector from the origin to the center of the sphere,
+			//The normal should be flipped. 
+			inPlaceDifference(&rayPrime,&originPrime);
+			toVector(&rayPrime);  
+			if(dotProduct(&rayPrime,&rayPrime) > dotProduct(&originPrime,&originPrime)){
+				inPlaceScalarMultiply(&normal,-1);
+			}
+
+
+		}
+		/*Do stuff for cubes...*/
+		else if(c != NULL){
+			r = c->r;
+			g = c->g;
+			b = c->b;
+			kRef = c->kR;
+			kDif = c->kDif;
+			kSpec = c->kSpec;
+			specExp = c->specExp;
+			//Computing the ambient light.
+			cR = c->kAmb * aR * c->r;
+			cG = c->kAmb * aG * c->g;
+			cB = c->kAmb * aB * c->b;	
 		}
 
 		//Light collision methods go here.
-		computeLightColor(&colPoint,origin,&normal,s,&lightR,&lightG,&lightB);
+		computeLightColor(&colPoint,origin,&normal,r,g,b,kDif,kSpec,specExp,&lightR,&lightG,&lightB);
 		cR += lightR;
 		cG += lightG;
 		cB += lightB;
-
-		//If the ray should be reflected, reflect it. Here goes nothing.
-		if(bounceCount > 0 && s->kR > 0.0){
-			double refR, refG, refB;
-
-			Matrix reflectedRay;
-			double reflectedRayBuffer[4];reflectedRay.matrix = reflectedRayBuffer;
-			Matrix projection;
-			double projectionBuffer[4];projection.matrix = projectionBuffer;
-			--bounceCount;
-
-			//calculating the projection of the ray onto the normal. 
-			placeScalarMultipleMatrix(&normal,&projection,2 * ((dotProduct(ray,&normal) / dotProduct(&normal,&normal))));
-
-			//Calculating the reflected ray. 
-			placeMatrixCopy(ray,&reflectedRay);
-			//Subtract 2 times the normal from the reflected ray.
-			inPlaceDifference(&reflectedRay,&projection);
-
-			traceRay(&reflectedRay,&colPoint,bounceCount,&refR,&refG,&refB);
-			cR += (s->kR * refR);
-			cG += (s->kR * refG);
-			cB += (s->kR * refB);
+		
+		if(bounceCount > 0 && kRef > 0.0){
+				double refR, refG, refB;
+				
+				Matrix reflectedRay;
+				double reflectedRayBuffer[4];reflectedRay.matrix = reflectedRayBuffer;
+				Matrix projection;
+				double projectionBuffer[4];projection.matrix = projectionBuffer;
+				--bounceCount;
+				
+				/*Calculating the projection of the ray onto the normal vector. Subtracting twice the normal projection to get the reflection.*/
+				placeScalarMultipleMatrix(&normal,&projection,2 * ((dotProduct(ray,&normal) / dotProduct(&normal,&normal))));
+				placeMatrixCopy(ray,&reflectedRay);
+				inPlaceDifference(ray,&reflectedRay);
+				
+				traceRay(&reflectedRay,&colPoint,bounceCount,&refR,&refG,&refB);
+				cR += (kRef * refR);
+				cG += (kRef * refG);
+				cB += (kRef * refB);
 		}
-	}
-	/*Do stuff for cubes...*/
-	else if(c != NULL){
-		//Computing the ambient light.
-		cR = c->kAmb * aR * c->r;
-		cG = c->kAmb * aG * c->g;
-		cB = c->kAmb * aB * c->b;	
 	}
 	else{
 		//If this is a bounced ray, return black if there is no collision.
@@ -762,6 +782,7 @@ double computeTToCube(Matrix *ray,Matrix *origin,Matrix *normalReturn,cube *c,do
 
 		originProj = dotProduct(&originCP,normal);
 		rayProj = dotProduct(&rayCP,normal);
+		if(rayProj >= 0.0)continue;
 		surProj = dotProduct(&surface,normal);
 		t = (surProj - originProj) / rayProj;
 		if(t > minimum){
