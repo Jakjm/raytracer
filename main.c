@@ -713,8 +713,10 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 				
 				/*Calculating the projection of the ray onto the normal vector. Subtracting twice the normal projection to get the reflection.*/
 				placeScalarMultipleMatrix(&normal,&projection,2 * ((dotProduct(ray,&normal) / dotProduct(&normal,&normal))));
+				/*Copy ray into reflected ray*/
 				placeMatrixCopy(ray,&reflectedRay);
-				inPlaceDifference(ray,&reflectedRay);
+				/*Subtract projection from reflected ray*/
+				inPlaceDifference(&reflectedRay,&projection);
 				
 				traceRay(&reflectedRay,&colPoint,bounceCount,&refR,&refG,&refB);
 				cR += (kRef * refR);
