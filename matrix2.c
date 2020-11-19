@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "matrix2.h"
 /*Creating an improved version of the matrix library used by my raytracer.*/
 /*This should hopefully help me make considerable improvements to the runtime.*/
@@ -133,8 +134,47 @@ void placeInverseMatrix(Matrix *matrix, Matrix *inverseMatrix){
 				
 		}
 	}
-}	
-
+}
+/*Generates a rotation matrix for rotating about the y axis.*/
+void placeRotation_Y_Matrix(Matrix *m,double theta){
+	double *mat = m->matrix;
+	double *matEnd = mat + 16;
+	double s = sin(theta);
+	double c = cos(theta);
+	m->numRows = 4;
+	m->numCols = 4;
+	while(mat < matEnd){
+		*mat = 0.0;
+		++mat;
+	}
+	mat = m->matrix;
+	*mat = c;
+	*(mat + 2) = s;
+	*(mat + 5) = 1.0;
+	*(mat + 8) = -s;	
+	*(mat + 10) = c;
+	*(mat + 15) = 1.0;
+}
+/*Generates a rotation matrix for rotating about the x axis*/
+void placeRotation_X_Matrix(Matrix *m,double theta){
+	double *mat = m->matrix;
+	double *matEnd = mat + 16;
+	double s = sin(theta);
+	double c = cos(theta);
+	m->numRows = 4;
+	m->numCols = 4;
+	while(mat < matEnd){
+		*mat = 0.0;
+		++mat;
+	}
+	mat = m->matrix;
+	*mat = 1.0;
+	*(mat + 5) = c;
+	*(mat + 6) = -s;
+	*(mat + 9) = s;
+	*(mat + 10) = c;
+	*(mat + 15) = 1.0;
+}
 /**Allocates a scaling matrix with the given scaling attributes*/
 Matrix *scaleMatrix(double sX, double sY, double sZ){
 	Matrix *newMatrix = malloc(sizeof(Matrix));
@@ -149,6 +189,18 @@ Matrix *translationMatrix(double tX,double tY,double tZ){
 	newMatrix->matrix = malloc(sizeof(double) * 16);
 	placeTranslationMatrix(tX,tY,tZ,newMatrix);
 	return newMatrix;
+}
+Matrix *rotation_Y_Matrix(double theta){
+	Matrix *rMatrix = malloc(sizeof(Matrix));
+	rMatrix->matrix = malloc(sizeof(double) * 16);
+	placeRotation_Y_Matrix(rMatrix,theta);
+	return rMatrix;
+}
+Matrix *rotation_X_Matrix(double theta){
+	Matrix *rMatrix = malloc(sizeof(Matrix));
+	rMatrix->matrix = malloc(sizeof(double) * 16);
+	placeRotation_X_Matrix(rMatrix,theta);
+	return rMatrix;
 }
 
 /**Calculates the dot product of two 3 dimensional vector*/ 

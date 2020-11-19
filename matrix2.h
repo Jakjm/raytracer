@@ -45,6 +45,8 @@ Matrix *translationMatrix(double,double,double);
 void placeMatrixCopy(Matrix *,Matrix *);
 void placeScaleMatrix(double, double, double, Matrix *);
 void placeTranslationMatrix(double,double,double,Matrix *);
+void placeRotation_Y_Matrix(Matrix *,double);
+void placeRotation_X_Matrix(Matrix *,double);
 void placeVec4(Matrix *,double,double,double);
 void placePoint4(Matrix *,double,double,double);
 void placeScalarMultipleMatrix(Matrix *m,Matrix *m2,double scalar);

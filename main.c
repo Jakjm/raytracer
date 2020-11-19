@@ -48,7 +48,10 @@ unsigned char *byteBuffer;
 typedef struct cube {
 	double posX, posY, posZ;
 	double scaleX, scaleY, scaleZ;
-
+	double rX, rY;
+	double r, g, b;
+	double kAmb, kDif, kSpec, kR;
+	int specExp;
 	Matrix *matrix;
 	Matrix *inverseMatrix;
 } cube;
@@ -162,6 +165,16 @@ cube *readCube(FILE *fp){
 	cube *c = malloc(sizeof(cube));
 	result = fscanf(fp," %lf %lf %lf %lf %lf %lf ",&c->posX,&c->posY,&c->posZ,&c->scaleX,&c->scaleY,&c->scaleZ);
 	if(result != 6){
+		free(c);
+		return NULL;
+	}
+	result = fscanf(fp," %lf %lf %lf %lf %lf ",&c->rX,&c->rY,&c->r,&c->g,&c->b);
+	if(result != 5){
+		free(c);
+		return NULL;
+	}
+	result = fscanf(fp," %lf %lf %lf %lf %d ",&c->kAmb,&c->kDif,&c->kSpec,&c->kR,&c->specExp);
+	if(result != 5){
 		free(c);
 		return NULL;
 	}
@@ -421,11 +434,24 @@ void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
 	if(verbose)printf("Writing: clock time: %ld clocks per sec: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
 }
 Matrix *getCubeMatrix(cube *c){
+	Matrix rX; double rotationXBuffer[16]; rX.matrix = rotationXBuffer;
+	Matrix rY; double rotationYBuffer[16]; rY.matrix = rotationYBuffer;
 	Matrix scale; double scaleBuffer[16]; scale.matrix = scaleBuffer;
 	Matrix translation; double translationBuffer[16]; translation.matrix = translationBuffer;
+	Matrix product; double productBuffer[16];product.matrix = productBuffer;
+	Matrix product2; double product2Buffer[16];product2.matrix = product2Buffer;
+
+	/**double theta*/
+	placeRotation_X_Matrix(&rX,c->rX);
+	placeRotation_Y_Matrix(&rY,c->rY);
 	placeTranslationMatrix(c->posX,c->posY,c->posZ,&translation);
 	placeScaleMatrix(c->scaleX,c->scaleY,c->scaleZ,&scale);
-	return getProductMatrix(&translation,&scale);
+	/*Product = tranlsation * scale.*/
+	placeProductMatrix(&translation,&scale,&product);
+	/*Product2 = translation * scale * rY*/
+	placeProductMatrix(&product,&rY,&product2);
+	/*Product3 = translation * scale * rY * rX*/
+	return getProductMatrix(&product2,&rX);
 }
 //Gets the transformation matrix for the current sphere. 
 Matrix *getSphereMatrix(sphere *s){
