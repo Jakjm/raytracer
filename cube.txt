@@ -6,12 +6,12 @@ TOP 1
 RES 500 500
 # sp	  x y  z sX sY sZ r g  b ka kd ks kr n
 # cube x y z sX sY sZ
-SPHERE haha 0 0 -3 2 2 2 0 0 1 1 1 1 1 20
-CUBE 0 0 -20 1 1 1 0.0 0.7 1 0 0 1 1 1 0 20
-CUBE 3 0 -25 1 1 1 0.0 0.7 0 1 0 1 1 1 1 20
-LIGHT l1 -2 0 0 0.9 0.9 0.9
-LIGHT l2 0 0 -10 0.9 0.9 0
-LIGHT l3 -10 5 -5 0 0 0.9
+#SPHERE haha 0 0 -3 2 2 2 0 0 1 1 1 1 1 20
+#CUBE -2 0 -6 1 1 1 -0.7 0.0 1 0 0 1 1 1 0 20
+CUBE 0 0 0 6 6 6 0.0 3.14 0 1 0 1 1 1 1 20
+#LIGHT l1 -2 0 0 0.9 0.9 0.9
+#LIGHT l2 0 0 -10 0.9 0.9 0
+LIGHT l3 0 0 0 0 1 0
 BACK 1 1 1
 AMBIENT 0.2 0.2 0.2
 OUTPUT cube.ppm

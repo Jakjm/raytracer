@@ -5,6 +5,7 @@
 /**Updating to allow the use of multithreading.*/
 #include <pthread.h>
 #include <time.h>
+#include <math.h>
 #include "matrix2.h"
 
 //@Author Jordan Malek
@@ -54,6 +55,7 @@ typedef struct cube {
 	int specExp;
 	Matrix *matrix;
 	Matrix *inverseMatrix;
+	Matrix *inverseTranspose;
 } cube;
 //Defining a structure for spheres. 
 typedef struct sphere{
@@ -180,6 +182,8 @@ cube *readCube(FILE *fp){
 	}
 	c->matrix = getCubeMatrix(c);
 	c->inverseMatrix = getInverseMatrix(c->matrix);
+	c->inverseTranspose = matrixCopy(c->inverseMatrix);
+	inPlaceTranspose(c->inverseTranspose);
 	return c;
 }
 void printCube(cube *c){
@@ -464,7 +468,7 @@ Matrix *getSphereMatrix(sphere *s){
 }
 double computeTToSphere(Matrix*ray,Matrix *origin,sphere *s,double minimum);
 
-double computeTToCube(Matrix*ray,Matrix *origin,Matrix *normal,cube *s,double minimum);
+double computeTToCube(Matrix*ray,Matrix *origin,Matrix **normal,cube *s,double minimum);
 /**Checks if there is a sphere or a cube in the way of this shadow ray on its way to a light source.
  * Used for checking if this spot should get some extra lighting.
  * */
@@ -604,7 +608,8 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	double lowestT = 2020202020202020;
 	int i;
 	cube *c = NULL;
-	Matrix potentialNormal; double pNormalBuf[4];potentialNormal.matrix = pNormalBuf;
+	Matrix *potentialNormal;
+	Matrix *normalPrime;
 	Matrix normal; double normalBuf[4]; normal.matrix = normalBuf;
 	//Computing the closest sphere intersection with the ray. 
 	double minimum = MINIMUM_T;
@@ -626,16 +631,19 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			lowestT = t;
 			s = NULL;
 			c = cubeList[i];
-			placeMatrixCopy(&potentialNormal, &normal);
+			normalPrime = potentialNormal;
 		}
 	}
 	t = lowestT;
 	if(s != NULL || c != NULL){
+		double kAmb;
 		double r, g, b, kDif, kSpec, kRef;
 		int specExp;
 		double lightR, lightG, lightB;
 		/*Calculate the collision point...*/
 		Matrix colPoint; double colPointBuf[4]; colPoint.matrix = colPointBuf;
+		Matrix rayPrime; double rayPrimeBuf[4]; rayPrime.matrix = rayPrimeBuf;
+		Matrix originPrime; double originPrimeBuf[4]; originPrime.matrix = originPrimeBuf;
 		placeScalarMultipleMatrix(ray,&colPoint,t);
 		inPlaceSum(&colPoint,origin);
 
@@ -647,17 +655,10 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			b = s->b;
 			kDif = s->kDif;
 			kSpec = s->kSpec;
+			kAmb = s->kAmb;
 			kRef = s->kR;
 			specExp = s->specExp;
 			//Variables for making the color calculations of the pixel.
-			Matrix rayPrime; double rayPrimeBuf[4]; rayPrime.matrix = rayPrimeBuf;
-			Matrix originPrime; double originPrimeBuf[4]; originPrime.matrix = originPrimeBuf;
-		
-		
-			//Computing the ambient light.
-			cR = s->kAmb * aR * s->r;
-			cG = s->kAmb * aG * s->g;
-			cB = s->kAmb * aB * s->b;	
 		
 			//Building the normal vector...
 			placeProductMatrix(s->inverseMatrix,ray,&rayPrime);
@@ -672,30 +673,30 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			placeProductMatrix(s->inverseTranspose,&rayPrime,&normal);
 			toVector(&normal);
 			//If the ray from the origin to collision point is longer than the vector from the origin to the center of the sphere,
+			//The center of the sphere is (0,0) though, since everything is relative to the sphere.
 			//The normal should be flipped. 
 			inPlaceDifference(&rayPrime,&originPrime);
 			toVector(&rayPrime);  
 			if(dotProduct(&rayPrime,&rayPrime) > dotProduct(&originPrime,&originPrime)){
 				inPlaceScalarMultiply(&normal,-1);
 			}
-
-
 		}
-		/*Do stuff for cubes...*/
+		/*Set lighting parameters and colour for cubes.*/
 		else if(c != NULL){
 			r = c->r;
 			g = c->g;
 			b = c->b;
+			kAmb = c->kAmb;
 			kRef = c->kR;
 			kDif = c->kDif;
 			kSpec = c->kSpec;
 			specExp = c->specExp;
-			//Computing the ambient light.
-			cR = c->kAmb * aR * c->r;
-			cG = c->kAmb * aG * c->g;
-			cB = c->kAmb * aB * c->b;	
+			
+			placeProductMatrix(c->inverseTranspose,normalPrime,&normal);
 		}
-
+		cR = kAmb * aR * r;
+		cG = kAmb * aG * g;
+		cB = kAmb * aB * b;
 		//Light collision methods go here.
 		computeLightColor(&colPoint,origin,&normal,r,g,b,kDif,kSpec,specExp,&lightR,&lightG,&lightB);
 		cR += lightR;
@@ -760,19 +761,19 @@ void makeCubeMatricies(){
 	++mList;
 	*mList = vec4(0.0,0.0,1.0);
 }
-//TODO.... work in progress....
-double computeTToCube(Matrix *ray,Matrix *origin,Matrix *normalReturn,cube *c,double minimum){
+double computeTToCube(Matrix *ray,Matrix *origin,Matrix **n, cube *c,double minimum){
 	/*Allocate matrix for placing the product of m and ray, and m and origin.*/
-	Matrix rayCP, originCP, *normal, surface;
+	Matrix rayCP, originCP, surface, *normal;
 	Matrix colPoint;
 	double colPtBuf[4];colPoint.matrix = colPtBuf;
 	double rayBuf[4], originBuf[4], surBuf[4];
-	double originProj, rayProj, surProj;
+	double originProj, rayProj, surProj, distance;
 	double minT, t;
 	rayCP.matrix = rayBuf;
 	originCP.matrix = originBuf;
 	surface.matrix = surBuf;
 	int i;
+	int a, b;
 	minT = -1;
 	
 	placeProductMatrix(c->inverseMatrix,origin,&originCP);
@@ -782,38 +783,44 @@ double computeTToCube(Matrix *ray,Matrix *origin,Matrix *normalReturn,cube *c,do
 		placeMatrixCopy(normal,&surface);
 		toPoint(&surface);
 
-		originProj = dotProduct(&originCP,normal);
 		rayProj = dotProduct(&rayCP,normal);
-		if(rayProj >= 0.0)continue;
+		originProj = dotProduct(&originCP,normal);
 		surProj = dotProduct(&surface,normal);
-		t = (surProj - originProj) / rayProj;
-		if(t > minimum){
-			int a, b;
-			placeScalarMultipleMatrix(&rayCP,&colPoint,t);
-			inPlaceSum(&colPoint,&originCP);
-			if(i < 2){
-				a = 1;
-				b = 2;
-			}
-			else if(i < 4){
-				a = 0;
-				b = 2;
+		distance = surProj - originProj;
+		t = distance / rayProj;
+		
+		//TODO: fix this... 
+		if(rayProj > 0.0){
+			//t = -t;
+			continue;
+		}
+		else if(t < minimum){
+			continue;
+		}
+		placeScalarMultipleMatrix(&rayCP,&colPoint,t);
+		inPlaceSum(&colPoint,&originCP);
+		if(i < 2){
+			a = 1;
+			b = 2;
+		}
+		else if(i < 4){
+			a = 0;
+			b = 2;
+		}
+		else{
+			a = 0;
+			b = 1;
+		}
+		if((colPtBuf[a] >= -1.0 && colPtBuf[a] <= 1.0) && (colPtBuf[b] >= -1.0 && colPtBuf[b] <= 1.0)){
+			if(minT > 0){
+				if(minT < t){
+					minT = t;
+					if(n != NULL)*n = normal;
+				}
 			}
 			else{
-				a = 0;
-				b = 1;
-			}
-			if((colPtBuf[a] >= -1.0 && colPtBuf[a] <= 1.0) && (colPtBuf[b] >= -1.0 && colPtBuf[b] <= 1.0)){
-				if(minT > 0){
-					if(minT < t){
-						minT = t;
-						if(normalReturn != NULL)placeMatrixCopy(normal,normalReturn);
-					}
-				}
-				else{
-					minT = t;
-					if(normalReturn != NULL)placeMatrixCopy(normal,normalReturn);
-				}
+				minT = t;
+				if(n != NULL)*n = normal;
 			}
 		}
 	}
