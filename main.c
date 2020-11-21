@@ -503,8 +503,6 @@ int existsCollision(Matrix *origin,Matrix *ray){
 //Computing the light color at the given point of collision.
 //the colPoint is the point of collision with the surface. 
 //the normal is the normal vector of collision with the surface
-//s is the sphere. 
-//TODO: this method can be easily adapted to both spheres and cubes by just inputting the lighting parameters instead of the kind of matrix.
 //origin is the observing point - but this changes as rays are traced.
 //returns the sum of all the light colors. 
 void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,double r, double g, double b, double kDif, double kSpec, int specExp, double *red,double *green,double *blue){
@@ -633,25 +631,28 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			normalPrime = potentialNormal;
 		}
 	}
+	/*Set t to the lowest t found that is still greater than the minimum*/
 	t = lowestT;
 	if(s != NULL || c != NULL){
 		double kAmb;
-		double r, g, b, kDif, kSpec, kRef;
+		double shapeRed, shapeGreen, shapeBlue, kDif, kSpec, kRef;
 		int specExp;
 		double lightR, lightG, lightB;
 		/*Calculate the collision point...*/
 		Matrix colPoint; double colPointBuf[4]; colPoint.matrix = colPointBuf;
 		Matrix rayPrime; double rayPrimeBuf[4]; rayPrime.matrix = rayPrimeBuf;
 		Matrix originPrime; double originPrimeBuf[4]; originPrime.matrix = originPrimeBuf;
+		
+		/*Col point = origin + ray * t*/
 		placeScalarMultipleMatrix(ray,&colPoint,t);
 		inPlaceSum(&colPoint,origin);
 
 		//There's a collision if we get inside this statement....
 		//We'll start making recursive calls...
 		if(s != NULL){
-			r = s->r;
-			g = s->g;
-			b = s->b;
+			shapeRed = s->r;
+			shapeGreen = s->g;
+			shapeBlue = s->b;
 			kDif = s->kDif;
 			kSpec = s->kSpec;
 			kAmb = s->kAmb;
@@ -672,8 +673,8 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			placeProductMatrix(s->inverseTranspose,&rayPrime,&normal);
 			toVector(&normal);
 			//If the ray from the origin to collision point is longer than the vector from the origin to the center of the sphere,
-			//The center of the sphere is (0,0) though, since everything is relative to the sphere.
 			//The normal should be flipped. 
+			//The center of the sphere is (0,0) though, since everything is relative to the sphere.
 			inPlaceDifference(&rayPrime,&originPrime);
 			toVector(&rayPrime);  
 			if(dotProduct(&rayPrime,&rayPrime) > dotProduct(&originPrime,&originPrime)){
@@ -682,9 +683,9 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 		}
 		/*Set lighting parameters and colour for cubes.*/
 		else if(c != NULL){
-			r = c->r;
-			g = c->g;
-			b = c->b;
+			shapeRed = c->r;
+			shapeGreen = c->g;
+			shapeBlue = c->b;
 			kAmb = c->kAmb;
 			kRef = c->kR;
 			kDif = c->kDif;
@@ -693,12 +694,13 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 
 			/**Apply the inverse transpose of the cube to the normal with respect to the cube to get the true normal vector*/ 
 			placeProductMatrix(c->inverseTranspose,normalPrime,&normal);
+			toVector(&normal); /*Need to set the normal to a vector...*/
 		}
-		cR = kAmb * aR * r;
-		cG = kAmb * aG * g;
-		cB = kAmb * aB * b;
+		cR = kAmb * aR * shapeRed;
+		cG = kAmb * aG * shapeGreen;
+		cB = kAmb * aB * shapeBlue;
 		//Light collision methods go here.
-		computeLightColor(&colPoint,origin,&normal,r,g,b,kDif,kSpec,specExp,&lightR,&lightG,&lightB);
+		computeLightColor(&colPoint,origin,&normal,shapeRed,shapeGreen,shapeBlue,kDif,kSpec,specExp,&lightR,&lightG,&lightB);
 		cR += lightR;
 		cG += lightG;
 		cB += lightB;
@@ -719,6 +721,10 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 				/*Subtract projection from reflected ray*/
 				inPlaceDifference(&reflectedRay,&projection);
 				
+				//if(c != NULL && shapeRed == 1.0 && shapeGreen == 1.0 && shapeBlue == 1.0){
+						//printMatrix(&normal);
+					//printMatrix(&reflectedRay);
+				//}
 				traceRay(&reflectedRay,&colPoint,bounceCount,&refR,&refG,&refB);
 				cR += (kRef * refR);
 				cG += (kRef * refG);
@@ -855,9 +861,9 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 	//Applying the matrix to the origin of the vector.
 	placeProductMatrix(s->inverseMatrix,origin,&originCP);
 	
-	a = dotProduct(&rayCP,&rayCP);
-	b = dotProduct(&originCP,&rayCP);
-	c = dotProduct(&originCP,&originCP) - 1;
+	a = dotProduct(&rayCP,&rayCP); /*Length of ray^2*/
+	b = dotProduct(&originCP,&rayCP);/*Length of origin along ray*/
+	c = dotProduct(&originCP,&originCP) - 1; /*Length of origin with respect to sphere ^ 2 - 1*/
 
 	det = b * b - a * c;
 	//If there is a collision between the sphere and the ray...
@@ -870,8 +876,8 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 		tTwo = (-b + rootDet) / a;
 
 		//Computing which one should be the t. 
-		
-		if(tOne > minimum || tTwo > minimum){
+			
+			if(tOne > minimum || tTwo > minimum){
 			if(tOne <= tTwo){
 				if(tOne >= minimum){
 					t = tOne;
@@ -904,7 +910,7 @@ void *computePixelThread(void *encoding){
 	double zeroY = (-rows / 2.0) + 0.5;
 
 	double planeX = (right - left) / cols;
-	double planeY = (bottom - top) / rows;
+	double planeY = -((top - bottom) / rows);
 
 	Matrix eye;
 	double eyeBuf[4];eye.matrix = eyeBuf;
