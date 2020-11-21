@@ -450,12 +450,12 @@ Matrix *getCubeMatrix(cube *c){
 	placeRotation_Y_Matrix(&rY,c->rY);
 	placeTranslationMatrix(c->posX,c->posY,c->posZ,&translation);
 	placeScaleMatrix(c->scaleX,c->scaleY,c->scaleZ,&scale);
-	/*Product = tranlsation * scale.*/
-	placeProductMatrix(&translation,&scale,&product);
-	/*Product2 = translation * scale * rY*/
-	placeProductMatrix(&product,&rY,&product2);
+	/*Product = rotationY * rotationX.*/
+	placeProductMatrix(&rY,&rX,&product);
+	/*Product2 = rotationY * rotationX * scale */
+	placeProductMatrix(&product,&scale,&product2);
 	/*Product3 = translation * scale * rY * rX*/
-	return getProductMatrix(&product2,&rX);
+	return getProductMatrix(&translation,&product2);
 }
 //Gets the transformation matrix for the current sphere. 
 Matrix *getSphereMatrix(sphere *s){
@@ -604,12 +604,11 @@ void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,double r, 
 void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *green,double *blue){
 	double cR, cG, cB;
 	sphere *s = NULL;
-	double t;
-	double lowestT = 2020202020202020;
+	double t; double lowestT = 2020202020202020;
 	int i;
 	cube *c = NULL;
 	Matrix *potentialNormal;
-	Matrix *normalPrime;
+	Matrix *normalPrime = NULL;
 	Matrix normal; double normalBuf[4]; normal.matrix = normalBuf;
 	//Computing the closest sphere intersection with the ray. 
 	double minimum = MINIMUM_T;
@@ -691,7 +690,8 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			kDif = c->kDif;
 			kSpec = c->kSpec;
 			specExp = c->specExp;
-			
+
+			/**Apply the inverse transpose of the cube to the normal with respect to the cube to get the true normal vector*/ 
 			placeProductMatrix(c->inverseTranspose,normalPrime,&normal);
 		}
 		cR = kAmb * aR * r;
