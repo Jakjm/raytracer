@@ -376,7 +376,7 @@ int parseFile(char *fileName){
 			if(result != 1)return -1;
 			readOutput = 1;
 		}
-		//Allow the use of comments file.
+		//Allow the use of comments in file, preceeded by #.
 		else if(strchr(input,'#')){
 			if(!strchr(input,'\n')){
 				int tmp = fgetc(file);
@@ -787,16 +787,24 @@ double computeTToCube(Matrix *ray,Matrix *origin,Matrix **n, cube *c,double mini
 		originProj = dotProduct(&originCP,normal);
 		surProj = dotProduct(&surface,normal);
 		distance = surProj - originProj;
+		if(rayProj == 0.0){
+			continue;
+		}
+		else if(rayProj > 0.0){
+			//Normal needs to be flipped in this case, since ray and normal are in the same direction.
+			if((i % 2) == 0){
+				normal = cubeMatricies[i+1];
+			}
+			else{
+				normal = cubeMatricies[i-1];
+			}
+		}
+		//distance = originProj - surProj;
 		t = distance / rayProj;
-		
-		//TODO: fix this... 
-		if(rayProj > 0.0){
-			//t = -t;
+		if(t < minimum){
 			continue;
 		}
-		else if(t < minimum){
-			continue;
-		}
+
 		placeScalarMultipleMatrix(&rayCP,&colPoint,t);
 		inPlaceSum(&colPoint,&originCP);
 		if(i < 2){
@@ -813,7 +821,7 @@ double computeTToCube(Matrix *ray,Matrix *origin,Matrix **n, cube *c,double mini
 		}
 		if((colPtBuf[a] >= -1.0 && colPtBuf[a] <= 1.0) && (colPtBuf[b] >= -1.0 && colPtBuf[b] <= 1.0)){
 			if(minT > 0){
-				if(minT < t){
+				if(t < minT){
 					minT = t;
 					if(n != NULL)*n = normal;
 				}
