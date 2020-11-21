@@ -192,6 +192,7 @@ void printCube(cube *c){
 void freeCube(cube *c){
 	freeMatrix(c->matrix);
 	freeMatrix(c->inverseMatrix);
+	freeMatrix(c->inverseTranspose);
 	free(c);
 }
 //Void for producing smaller versions of the lists, if possible.
@@ -285,7 +286,7 @@ int parseFile(char *fileName){
 	if(file == NULL)return -1;
 	
 	int result;
-	char *input = malloc(sizeof(char) * 30);
+	char input[30];
 	result = fscanf(file," %29s ",input);
 	while(result == 1){
 		//Read the near plane. 
@@ -392,7 +393,6 @@ int parseFile(char *fileName){
 	}
 
 	//Cleaning up the extra memory used within this function
-	free(input);
 	trimLists();
 	if(readNear == 0 || readTop == 0 || readBottom == 0 || readLeft == 0 || readRight == 0){
 		return -1;
