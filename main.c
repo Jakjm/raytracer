@@ -9,7 +9,6 @@
 #include "matrix2.h"
 
 //@Author Jordan Malek
-
 #define MINIMUM_T 0.0000000001
 #define NUM_BOUNCES 3
 //Warning the compiler that I'll be defining these structs at some point.
@@ -264,7 +263,7 @@ void printParsedFile(char* fileName){
 //The inputs are stored in global variables. 
 
 //Returns -1 if the parse was unsucessful.
-int parseFile(char *fileName){
+int parseFile(char *fileName,long *parseTime){
 	/*Measuring time used to read the file.*/
 	clock_t endTime, startTime = clock();
 	//Flags for whether the viewing planes have been parsed or not.
@@ -401,9 +400,9 @@ int parseFile(char *fileName){
 		return -1;
 	}
 	result = fclose(file);
-
+	
 	endTime = clock();
-	if(verbose)printf("Parsing: clock time: %ld clocks per second: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
+	*parseTime = (endTime - startTime);
 	return 0;		
 }
 //Function to convert rgb floats into an rgb color. 
@@ -421,7 +420,7 @@ void createImageArray(){
 }
 //Function to save the image
 //Copied from the website. 
-void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
+void save_image(int Width, int Height, char* fname,unsigned char* pixels,long *saveTime) {
 	FILE *fp;
 	const int maxVal=255;
 	clock_t endTime, startTime = clock();
@@ -435,7 +434,7 @@ void save_image(int Width, int Height, char* fname,unsigned char* pixels) {
 	fwrite(pixels,3,Width*Height,fp);
 	fclose(fp);
 	endTime = clock();
-	if(verbose)printf("Writing: clock time: %ld clocks per sec: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
+	*saveTime = (endTime - startTime);
 }
 Matrix *getCubeMatrix(cube *c){
 	Matrix rX; double rotationXBuffer[16]; rX.matrix = rotationXBuffer;
@@ -502,7 +501,6 @@ int existsCollision(Matrix *origin,Matrix *ray){
 
 //Computing the light color at the given point of collision.
 //the colPoint is the point of collision with the surface. 
-//the normal is the normal vector of collision with the surface
 //origin is the observing point - but this changes as rays are traced.
 //returns the sum of all the light colors. 
 void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,double r, double g, double b, double kDif, double kSpec, int specExp, double *red,double *green,double *blue){
@@ -952,7 +950,7 @@ void *computePixelThread(void *encoding){
 	}
 	return NULL;
 }
-void computePixels2(int threadCount){
+void computePixels2(int threadCount,long *renderTime){
 	clock_t endTime, startTime = clock();
 	int thread;
 	/*The i-th thread renders rowStart to rowEnd (not including the row-endth row).*/
@@ -979,7 +977,7 @@ void computePixels2(int threadCount){
 	}
 
 	endTime = clock();
-	if(verbose)printf("Raytracing: clock time: %ld clocks per second: %ld runtime: %.3lfms\n",endTime - startTime,CLOCKS_PER_SEC,(endTime - startTime) / (CLOCKS_PER_SEC / 1000.0));
+	*renderTime = (endTime - startTime); 
 }
 //Freeing the sphereList and the spheres it contains
 //and the light list and the lights contained. 
@@ -1009,7 +1007,8 @@ int main(int argc,char **argv){
 
 	char *filename = NULL;
 	int numThreads = 1;
-
+	long parseTime, renderTime, saveTime;
+	int printRuntimes = 0;
 	//Checking if the program lacks arguments. 
 	if(argc < 2){
 		fprintf(stderr,"Please retry running the program with the correct number of arguments\n");
@@ -1022,6 +1021,9 @@ int main(int argc,char **argv){
 		if(strcmp(arg,"-v") == 0){
 			verbose = 1;
 		}
+		else if(strcmp(arg,"-ptime") == 0){
+			printRuntimes = 1;
+		}
 		else if(sscanf(arg,"-t%d",&numThreads) == 1){
 			if(numThreads < 0 || numThreads > 16){
 				fprintf(stderr,"Incorrect number of threads\n");
@@ -1031,24 +1033,37 @@ int main(int argc,char **argv){
 		else{
 			filename = arg;
 			/**Check if the argument is a correct filename.*/
-			int result = parseFile(filename);
+			int result = parseFile(filename,&parseTime);
 			if(result == -1){
-				fprintf(stderr,"::Parsing the file failed.\n::Please ensure you have provided a valid txt file in the format specified by the assignment.\n");
+				fprintf(stderr,"Parsing the file failed.\n::Please ensure you have provided a valid txt file in the specified format.\n");
 				return 1;
 			}
 			if(verbose)printParsedFile(filename);
 		}
 		++argv;
 	}
+	/*If no file was read, exit.*/
+	if(filename == NULL){
+		fprintf(stderr,"No input file specified. Please specify a text file describing a scene to render.\n");
+		return 1;
+	}
 	makeCubeMatricies();
 	createImageArray();
-	computePixels2(numThreads);
+	computePixels2(numThreads,&renderTime);
 	//Freeing the lists of lights and spheres. 
 	freeLists();
 	
 	//Saving the image file:
-	save_image(cols,rows,outputFile,byteBuffer);
+	save_image(cols,rows,outputFile,byteBuffer,&saveTime);
 
+	/*Print runtimes for different segments of raytracer, if the option was specified.*/
+	if(printRuntimes){
+		printf("Summary of runtime\n");
+		printf("Parsing: %.3lf ms\n", parseTime * (1000.0 / CLOCKS_PER_SEC));	
+		printf("Rendering: %.3lf ms\n",renderTime * (1000.0 / CLOCKS_PER_SEC));
+		printf("Save time: %.3lf ms\n",saveTime * (1000.0 / CLOCKS_PER_SEC));
+	}
+	
 	//Freeing the remaining used resources. 
 	free(byteBuffer);
 	free(outputFile);
