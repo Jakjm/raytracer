@@ -18,4 +18,4 @@ LIGHT l2 -5 0 -10 0.9 0.9 0.9
 LIGHT l3 -10 5 -5 0 0 0.9
 BACK 1 1 1
 AMBIENT 0.2 0.2 0.2
-OUTPUT testSample.ppm
+OUTPUT example.ppm

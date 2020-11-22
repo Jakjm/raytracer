@@ -4,6 +4,7 @@ This is a command line program written in C that renders a 3D scene using softwa
 Sample input files and the generated output files are included in the repository. 
 
 ![Example rendered image](cube.png)
+![Example rendered image](example.png)
 # Compiling and running the raytracer
 To compile the program, use the following command:
 
