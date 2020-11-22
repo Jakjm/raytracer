@@ -1,9 +1,9 @@
 NEAR 1
-LEFT -1.77
-RIGHT 1.77
+LEFT -1.00
+RIGHT 1.00
 BOTTOM -1
 TOP 1
-RES 3840 2160
+RES 2160 2160
 # sp	  x y  z sX sY sZ r g  b ka kd ks kr n
 # cube x y z sX sY sZ
 CUBE 0 0 -14 1.0 1.0 1.0 0.5 -0.0 1 1 1 1 1 1 1 25
@@ -15,6 +15,6 @@ CUBE 0 -6 -14 5 0.5 5 -0 -0.735 0 0.6 1 0.6 1.0 1 1 20
 CUBE -3 0.5 -12 0.45 0.45 0.45 0.7 0.7 1 0.6 1 1 0.4 1 1 20
 CUBE -4 -2 -12 1 1 1 0.3 0.46 0.6 1 0.6 1 1 1 1 20
 LIGHT l1 0 8 -14 1 1 1 
-BACK 0.2 0.5 0.4
+BACK 0.6 0.5 0.4
 AMBIENT 0.2 0.2 0.2
 OUTPUT cube.ppm
