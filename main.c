@@ -20,6 +20,9 @@ typedef struct cube cube;
 //Variable that says whether debug info should be printed or not.
 int verbose = 0;
 
+/*Antialias option*/
+int antialias = 0;
+
 /**Values of the plane variables to be read by the parser. **/
 float near, left, right, bottom, top;
 
@@ -917,7 +920,9 @@ void *computePixelThread(void *encoding){
 
 	int x, y;
 	double rayX, rayY, rayZ;
+	double tR, tG, tB;
 	double cR, cG, cB;
+	double antiX, antiY;
 
 	unsigned char *buffer = byteBuffer + (rowStart * cols * 3);
 	placePoint4(&eye,0,0,0);
@@ -925,12 +930,15 @@ void *computePixelThread(void *encoding){
 	/**Render the pixels that have been assigned to this thread.*/
 	for(y = rowStart; y < rowEnd; ++y){
 		for(x = 0;x < cols; ++x){
+			tR = 0.0; tG = 0.0; tB = 0.0;
+			
 			/*Calculate the ray for the particular pixel we're rendering.*/
 			rayX = (x + zeroX) * planeX;
 			rayY = (y + zeroY) * planeY;
 			rayZ = -near;
 			setVec4(&ray,rayX,rayY,rayZ);
 			setPoint4(&eye,0.0,0.0,0.0);
+
 			//Computing the pixel color.
 			traceRay(&ray,&eye,NUM_BOUNCES,&cR,&cG,&cB);
 			
@@ -938,13 +946,46 @@ void *computePixelThread(void *encoding){
 			if(cR > 1.0)cR = 1.0;
 			if(cG > 1.0)cG = 1.0;
 			if(cB > 1.0)cB = 1.0;
+			
+			tR += cR; 
+			tG += cG;
+			tB += cB;
+			if(antialias){
+				for(antiX = -0.3;antiX <= 0.4;antiX += 0.3){
+					for(antiY = -0.3;antiY <= 0.4;antiY += 0.3){
+						rayX = (x + zeroX + antiX) * planeX;
+						rayY = (y + zeroY + antiY) * planeY;
+						rayZ = -near;
+
+						setVec4(&ray,rayX,rayY,rayZ);
+						setPoint4(&eye,0.0,0.0,0.0);
+						traceRay(&ray,&eye,NUM_BOUNCES,&cR,&cG,&cB);
+						//Clamping the color, if the color has exceeded one. 
+						if(cR > 1.0)cR = 1.0;
+						if(cG > 1.0)cG = 1.0;
+						if(cB > 1.0)cB = 1.0;
+			
+						tR += cR; 
+						tG += cG;
+						tB += cB;
+	
+					}
+				}
+				/*Average out colours of samples.*/
+				tR *= 0.1;
+				tG *= 0.1;
+				tB *= 0.1;
+			}
+			
+			
+			
 
 			/*Put the colour for this pixel in the buffer.*/
-			*buffer = (unsigned char)(cR * 255);
+			*buffer = (unsigned char)(tR * 255);
 			++buffer;
-			*buffer = (unsigned char)(cG * 255);
+			*buffer = (unsigned char)(tG * 255);
 			++buffer;
-			*buffer = (unsigned char)(cB * 255);
+			*buffer = (unsigned char)(tB * 255);
 			++buffer;
 		}
 	}
@@ -1029,6 +1070,9 @@ int main(int argc,char **argv){
 				fprintf(stderr,"Incorrect number of threads\n");
 				return 1;
 			}
+		}
+		else if(strcmp(arg,"-aa") == 0){
+			antialias = 1;
 		}
 		else{
 			filename = arg;
