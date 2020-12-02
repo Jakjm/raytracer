@@ -55,7 +55,6 @@ typedef struct cube {
 	double r, g, b;
 	double kAmb, kDif, kSpec, kR;
 	int specExp;
-	Matrix *matrix;
 	Matrix *inverseMatrix;
 	Matrix *inverseTranspose;
 } cube;
@@ -74,7 +73,6 @@ typedef struct sphere{
 	//Specular brightness exponent
        	int specExp; 	
 
-	Matrix *matrix;
 	Matrix *inverseMatrix;
 	Matrix *inverseTranspose; 
 } sphere;
@@ -82,22 +80,31 @@ Matrix *getSphereMatrix(sphere *);
 //Function for parsing the sphere from the text file.
 sphere *readSphere(FILE *fp){
 	int result;
+	Matrix *sMatrix;
 	sphere *oval = malloc(sizeof(sphere));
 	oval->name = malloc(sizeof(char) * 30);
 
 	//Reading the name, position and scale. Breaking if there is a read error.
 	result = fscanf(fp, " %29s %lf %lf %lf %lf %lf %lf ", oval->name, &oval->posX, &oval->posY, &oval->posZ, &oval->scaleX, &oval->scaleY, &oval->scaleZ);
-	if(result != 7)return NULL;
+	if(result != 7){
+		free(oval->name);
+		free(oval);
+		return NULL;
+	}
 	
 	//Reading the color and the lighting parameters. Breaking if there is a read error. 
 	result = fscanf(fp, " %lf %lf %lf %lf %lf %lf %lf %d ",&oval->r,&oval->g,&oval->b,&oval->kAmb,&oval->kDif,&oval->kSpec,&oval->kR, &oval->specExp);
-	if(result != 8)return NULL;
+	if(result != 8){
+		free(oval->name);
+		free(oval);
+		return NULL;
+	}
 	
-	oval->matrix = getSphereMatrix(oval);
-	oval->inverseMatrix = getInverseMatrix(oval->matrix);
+	sMatrix = getSphereMatrix(oval);
+	oval->inverseMatrix = getInverseMatrix(sMatrix);
 	oval->inverseTranspose = matrixCopy(oval->inverseMatrix);
 	inPlaceTranspose(oval->inverseTranspose);
-	
+	free(sMatrix);
 	return oval;
 }
 /*
@@ -105,7 +112,6 @@ sphere *readSphere(FILE *fp){
  */
 void freeSphere(sphere *s){
 	free(s->name);
-	freeMatrix(s->matrix);
 	freeMatrix(s->inverseMatrix);
 	freeMatrix(s->inverseTranspose);
 	free(s);
@@ -166,6 +172,7 @@ void printLight(light *lamp){
 Matrix *getCubeMatrix(cube *);
 cube *readCube(FILE *fp){
 	int result;
+	Matrix *matrix;
 	cube *c = malloc(sizeof(cube));
 	result = fscanf(fp," %lf %lf %lf %lf %lf %lf ",&c->posX,&c->posY,&c->posZ,&c->scaleX,&c->scaleY,&c->scaleZ);
 	if(result != 6){
@@ -182,17 +189,17 @@ cube *readCube(FILE *fp){
 		free(c);
 		return NULL;
 	}
-	c->matrix = getCubeMatrix(c);
-	c->inverseMatrix = getInverseMatrix(c->matrix);
+	matrix = getCubeMatrix(c);
+	c->inverseMatrix = getInverseMatrix(matrix);
 	c->inverseTranspose = matrixCopy(c->inverseMatrix);
 	inPlaceTranspose(c->inverseTranspose);
+	free(matrix);
 	return c;
 }
 void printCube(cube *c){
 	printf("Cube Position(%.1lf %.1lf %.1lf)\n",c->posX,c->posY,c->posZ);
 }
 void freeCube(cube *c){
-	freeMatrix(c->matrix);
 	freeMatrix(c->inverseMatrix);
 	freeMatrix(c->inverseTranspose);
 	free(c);
@@ -923,10 +930,11 @@ void *computePixelThread(void *encoding){
 	double tR, tG, tB;
 	double cR, cG, cB;
 	double antiX, antiY;
-
+	double antiCoefficient = 1.0 / 9.0;
 	unsigned char *buffer = byteBuffer + (rowStart * cols * 3);
 	placePoint4(&eye,0,0,0);
 	placeVec4(&ray,0,0,0);
+
 	/**Render the pixels that have been assigned to this thread.*/
 	for(y = rowStart; y < rowEnd; ++y){
 		for(x = 0;x < cols; ++x){
@@ -951,8 +959,10 @@ void *computePixelThread(void *encoding){
 			tG += cG;
 			tB += cB;
 			if(antialias){
-				for(antiX = -0.3;antiX <= 0.4;antiX += 0.3){
-					for(antiY = -0.3;antiY <= 0.4;antiY += 0.3){
+				for(antiX = -0.3;antiX <= 0.32;antiX += 0.3){
+					for(antiY = -0.3;antiY <= 0.32;antiY += 0.3){
+						/*Skip the middle ray since it has already been considered.*/
+						if(antiX >= -0.1 && antiX < 0.1 && antiY >= -0.1 && antiY <= 0.1)continue;
 						rayX = (x + zeroX + antiX) * planeX;
 						rayY = (y + zeroY + antiY) * planeY;
 						rayZ = -near;
@@ -964,17 +974,15 @@ void *computePixelThread(void *encoding){
 						if(cR > 1.0)cR = 1.0;
 						if(cG > 1.0)cG = 1.0;
 						if(cB > 1.0)cB = 1.0;
-			
 						tR += cR; 
 						tG += cG;
 						tB += cB;
-	
 					}
 				}
 				/*Average out colours of samples.*/
-				tR *= 0.1;
-				tG *= 0.1;
-				tB *= 0.1;
+				tR *= antiCoefficient;
+				tG *= antiCoefficient;
+				tB *= antiCoefficient;
 			}
 			
 			
@@ -1049,7 +1057,6 @@ int main(int argc,char **argv){
 	char *filename = NULL;
 	int numThreads = 1;
 	long parseTime, renderTime, saveTime;
-	int printRuntimes = 0;
 	//Checking if the program lacks arguments. 
 	if(argc < 2){
 		fprintf(stderr,"Please retry running the program with the correct number of arguments\n");
@@ -1062,9 +1069,6 @@ int main(int argc,char **argv){
 		if(strcmp(arg,"-v") == 0){
 			verbose = 1;
 		}
-		else if(strcmp(arg,"-ptime") == 0){
-			printRuntimes = 1;
-		}
 		else if(sscanf(arg,"-t%d",&numThreads) == 1){
 			if(numThreads < 0 || numThreads > 16){
 				fprintf(stderr,"Incorrect number of threads\n");
@@ -1074,7 +1078,7 @@ int main(int argc,char **argv){
 		else if(strcmp(arg,"-aa") == 0){
 			antialias = 1;
 		}
-		else{
+		else if(filename == NULL){
 			filename = arg;
 			/**Check if the argument is a correct filename.*/
 			int result = parseFile(filename,&parseTime);
@@ -1082,7 +1086,6 @@ int main(int argc,char **argv){
 				fprintf(stderr,"Parsing the file failed.\n::Please ensure you have provided a valid txt file in the specified format.\n");
 				return 1;
 			}
-			if(verbose)printParsedFile(filename);
 		}
 		++argv;
 	}
@@ -1091,6 +1094,7 @@ int main(int argc,char **argv){
 		fprintf(stderr,"No input file specified. Please specify a text file describing a scene to render.\n");
 		return 1;
 	}
+	if(verbose)printParsedFile(filename);
 	makeCubeMatricies();
 	createImageArray();
 	computePixels2(numThreads,&renderTime);
@@ -1101,7 +1105,7 @@ int main(int argc,char **argv){
 	save_image(cols,rows,outputFile,byteBuffer,&saveTime);
 
 	/*Print runtimes for different segments of raytracer, if the option was specified.*/
-	if(printRuntimes){
+	if(verbose){
 		printf("Summary of runtime\n");
 		printf("Parsing: %.3lf ms\n", parseTime * (1000.0 / CLOCKS_PER_SEC));	
 		printf("Rendering: %.3lf ms\n",renderTime * (1000.0 / CLOCKS_PER_SEC));
