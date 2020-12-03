@@ -563,11 +563,14 @@ void computeLightColor(Matrix *colPoint,Matrix *origin,Matrix *normal,double r, 
 		       	difG = diff * l->iG * g;
 			difB = diff * l->iB * b;
 
-			//Computing the reflection of the light ray on the surface. 
+			/*Ref = negative shadow ray. In other words vector from light to colPoint*/
 			placeScalarMultipleMatrix(&shadowRay,&ref,-1);
-			dot = 2*dotProduct(&shadowRay,normal) / dotProduct(normal,normal);
+
+			/*Twice the projection of the ref onto normal gives us the amount of bounce.*/
+			dot = 2*dotProduct(&ref,normal) / dotProduct(normal,normal);
 			placeScalarMultipleMatrix(normal,&projection,dot);
-			inPlaceSum(&ref,&projection);
+			/*Subtract the bounce from ref.*/
+			inPlaceDifference(&ref,&projection);
 
 			//Computing the viewing ray... 
 			//The viewing ray should be the vector from the collision point to the eye. 
