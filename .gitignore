@@ -1,3 +1,4 @@
 raytracer.exe
 build
 *.o
+*.ppm
