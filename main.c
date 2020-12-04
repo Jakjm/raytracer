@@ -684,12 +684,16 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 			inPlaceSum(&colPointPrime,&originPrime);
 			toVector(&colPointPrime); /*Vectorize the colPointPrime before applying the inverse transpose to it*/
 
+			
+			/*If the distance from the eye to the collision point is longer than the distance from the eye to the center of the sphere,
+			 *then the collision happened at the back of the sphere, not the front*/		
+			if(dotProduct(&rayPrime,&rayPrime) > dotProduct(&originPrime,&originPrime)){
+				inPlaceScalarMultiply(&colPointPrime,-1);
+			}
+			normalPrime = &colPointPrime;
+			/*Apply the inverse transpose of the sphere to get the canonical normal.*/
 			placeProductMatrix(s->inverseTranspose,&colPointPrime,&normal);
 			toVector(&normal);
-			
-			if(dotProduct(&rayPrime,&rayPrime) > dotProduct(&originPrime,&originPrime)){
-				inPlaceScalarMultiply(&normal,-1);
-			}
 		}
 		/*Set lighting parameters and colour for cubes.*/
 		else if(c != NULL){
@@ -884,25 +888,14 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 		double tOne;
 		double tTwo;
 		tOne = (-b - rootDet) * reciprocalA;
-		tTwo = (-b + rootDet) * reciprocalA;
-
-		//Computing which one should be the t. 
-		if(tOne > minimum || tTwo > minimum){
-			if(tOne <= tTwo){
-				if(tOne >= minimum){
-					t = tOne;
-				}
-				else{
-					t = tTwo;
-				}
-			}
-			else{
-				if(tTwo >= minimum){
-					t = tTwo;
-				}
-				else{
-					t = tOne;
-				}
+		
+		if(tOne > minimum){
+			t = tOne;
+		}
+		else{
+			tTwo = (-b + rootDet) * reciprocalA;
+			if(tTwo > minimum){
+				t = tTwo;
 			}
 		}
 	}
