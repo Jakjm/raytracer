@@ -11,6 +11,7 @@
 //@Author Jordan Malek
 #define MINIMUM_T 0.0000000001
 #define NUM_BOUNCES 3
+#define MAX_THREADS 16
 //Warning the compiler that I'll be defining these structs at some point.
 typedef struct sphere sphere;
 typedef struct light light;
@@ -625,7 +626,7 @@ void traceRay(Matrix *ray,Matrix *origin,int bounceCount,double *red,double *gre
 	//Computing the closest sphere intersection with the ray. 
 	double minimum = MINIMUM_T;
 	if(bounceCount == NUM_BOUNCES){/*If bounceCount = NUM_BOUNCES, collision must be after near plane*/
-		minimum = 1 + MINIMUM_T;
+		minimum = near + MINIMUM_T;
 	}
 	for(i = 0;i < numSpheres;++i){
 		//Need to compute the normal here...
@@ -888,15 +889,12 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 		double tOne;
 		double tTwo;
 		tOne = (-b - rootDet) * reciprocalA;
-		
+		tTwo = (-b + rootDet) * reciprocalA;
 		if(tOne > minimum){
 			t = tOne;
 		}
-		else{
-			tTwo = (-b + rootDet) * reciprocalA;
-			if(tTwo > minimum){
-				t = tTwo;
-			}
+		else if(tTwo > minimum){
+			t = tTwo;
 		}
 	}
 	return t;
@@ -907,10 +905,10 @@ void *computePixelThread(void *encoding){
 	long mask = 0XFFFFFFFF;
 	int rowStart = encodedRowParms >> 32;
 	int rowEnd = (encodedRowParms & mask);
-
-	/*The location of pixel 0,0 in space.*/
-	double zeroX = (-cols / 2.0) + 0.5;
-	double zeroY = (-rows / 2.0) + 0.5;
+	
+	/*The location of the pixel at row 0, column 0 in camera coordinates*/
+	double zeroX = ((left * cols) * 0.5) + 0.5;
+	double zeroY = ((bottom * rows) * 0.5) + 0.5;
 
 	double planeX = (right - left) / cols;
 	double planeY = -((top - bottom) / rows);
@@ -994,30 +992,49 @@ void *computePixelThread(void *encoding){
 	}
 	return NULL;
 }
+/*This method distributes the workload to render the image along multiple threads.*/
 void computePixels2(int threadCount,long *renderTime){
 	clock_t endTime, startTime = clock();
 	int thread;
 	/*The i-th thread renders rowStart to rowEnd (not including the row-endth row).*/
 	int rowStart, rowEnd;
+	
 	/*A particular thread will render rowHeight * cols pixels.*/ 
 	int rowHeight = rows / threadCount;
 	long encoding;
 	
-	/**Default to 1 if threadCount invalid*/
-	if(threadCount < 1 || threadCount > 16)threadCount = 1;
-	pthread_t threads[threadCount];
+
+	/**
+	 * EG. if using 4 threads
+	 * # # # # # < - done by main thread
+	 * # # # # # < - done by helper thread 1
+	 * # # # # # < - done by helper thread 2
+	 * # # # # # < - done by helper thread 3 
+	 */
+
+	pthread_t threads[MAX_THREADS];
 	
-	for(thread = 0;thread < threadCount;++thread){
+	/*The work will be divided equally among the main thread (the currently active ones)
+	 *and the helper threads.*/
+	/*The helper threads will handle lower slices of rows of the image.*/
+	for(thread = 1;thread < threadCount;++thread){
 		rowStart = thread * rowHeight;
 		rowEnd = rowStart + rowHeight;
-		encoding = rowStart;
-		encoding = encoding << 32;
-		encoding += rowEnd;
-		pthread_create(&threads[thread],NULL,computePixelThread,(void*)encoding);
+		encoding = ((long)rowStart << 32) + rowEnd;
+		
+		//Create a thread to handle the workload
+		pthread_create(&threads[thread - 1],NULL,computePixelThread,(void*)encoding);
 	}
+
+	/*The main thread will handle the first slice of rows*/
+	rowStart = 0;
+	rowEnd = rowHeight;
+	encoding = ((long)rowStart << 32) + rowEnd;
+	computePixelThread((void*)encoding);
+
 	/*Wait to join each thread.*/
-	for(int thread = 0;thread < threadCount;++thread){
-		pthread_join(threads[thread],NULL);
+	for(int thread = 1;thread < threadCount;++thread){
+		pthread_join(threads[thread - 1],NULL);
 	}
 
 	endTime = clock();
@@ -1065,7 +1082,8 @@ int main(int argc,char **argv){
 			verbose = 1;
 		}
 		else if(sscanf(arg,"-t%d",&numThreads) == 1){
-			if(numThreads < 0 || numThreads > 16){
+			/**Verify that the number of requested threads is valid...*/
+			if(numThreads <= 0 || numThreads > MAX_THREADS){
 				fprintf(stderr,"Incorrect number of threads\n");
 				return 1;
 			}
