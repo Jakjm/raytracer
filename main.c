@@ -1001,6 +1001,9 @@ void computePixels2(int threadCount,long *renderTime){
 	
 	/*A particular thread will render rowHeight * cols pixels.*/ 
 	int rowHeight = rows / threadCount;
+
+	//End offset
+	int offset = rows % threadCount;
 	long encoding;
 	
 
@@ -1018,7 +1021,7 @@ void computePixels2(int threadCount,long *renderTime){
 	 *and the helper threads.*/
 	/*The helper threads will handle lower slices of rows of the image.*/
 	for(thread = 1;thread < threadCount;++thread){
-		rowStart = thread * rowHeight;
+		rowStart = (thread * rowHeight) + offset;
 		rowEnd = rowStart + rowHeight;
 		encoding = ((long)rowStart << 32) + rowEnd;
 		
@@ -1028,7 +1031,7 @@ void computePixels2(int threadCount,long *renderTime){
 
 	/*The main thread will handle the first slice of rows*/
 	rowStart = 0;
-	rowEnd = rowHeight;
+	rowEnd = rowHeight + offset;
 	encoding = ((long)rowStart << 32) + rowEnd;
 	computePixelThread((void*)encoding);
 
