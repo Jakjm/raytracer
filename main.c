@@ -899,13 +899,21 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 	}
 	return t;
 }
+
+
+void pack(int *arr, int start, int end){
+	arr[0] = start;
+	arr[1] = end;
+}
+void unpack(int *arr, int *start,int *end){
+	*start = arr[0];
+	*end = arr[1];
+}
 /**This method is used to handle the raytracing for a particular portion of the scene.*/
-void *computePixelThread(void *encoding){
-	long encodedRowParms = (long)encoding;
-	long mask = 0XFFFFFFFF;
-	int rowStart = encodedRowParms >> 32;
-	int rowEnd = (encodedRowParms & mask);
-	
+void *computePixelThread(void *range){
+	//long mask = 0XFFFFFFFF;
+	int rowStart, rowEnd;
+	unpack(range,&rowStart,&rowEnd);
 	/*The location of the pixel at row 0, column 0 in camera coordinates*/
 	double zeroX = ((left * cols) * 0.5) + 0.5;
 	double zeroY = ((bottom * rows) * 0.5) + 0.5;
@@ -1004,7 +1012,6 @@ void computePixels2(int threadCount,long *renderTime){
 
 	//End offset
 	int offset = rows % threadCount;
-	long encoding;
 	
 
 	/**
@@ -1016,24 +1023,24 @@ void computePixels2(int threadCount,long *renderTime){
 	 */
 
 	pthread_t threads[MAX_THREADS];
-	
+	int range[2];
 	/*The work will be divided equally among the main thread (the currently active ones)
 	 *and the helper threads.*/
 	/*The helper threads will handle lower slices of rows of the image.*/
 	for(thread = 1;thread < threadCount;++thread){
 		rowStart = (thread * rowHeight) + offset;
 		rowEnd = rowStart + rowHeight;
-		encoding = ((long)rowStart << 32) + rowEnd;
+	 	pack(range,rowStart,rowEnd);
 		
 		//Create a thread to handle the workload
-		pthread_create(&threads[thread - 1],NULL,computePixelThread,(void*)encoding);
+		pthread_create(&threads[thread - 1],NULL,computePixelThread,(void*)range);
 	}
 
 	/*The main thread will handle the first slice of rows*/
 	rowStart = 0;
 	rowEnd = rowHeight + offset;
-	encoding = ((long)rowStart << 32) + rowEnd;
-	computePixelThread((void*)encoding);
+	pack(range,rowStart,rowEnd);
+	computePixelThread((void*)range);
 
 	/*Wait to join each thread.*/
 	for(int thread = 1;thread < threadCount;++thread){
