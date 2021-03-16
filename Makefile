@@ -6,3 +6,5 @@ matrix2.o : matrix2.c matrix2.h
 	$(CC) -c matrix2.c $(flags)
 main.o : main.c matrix2.h
 	$(CC) -c -pthread main.c $(flags)
+clean : 
+	rm *.o raytracer.exe

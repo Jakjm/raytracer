@@ -429,12 +429,14 @@ int convertIntColor(double red, double green, double blue){
 void createImageArray(){
 	byteBuffer = malloc(sizeof(unsigned char) * (rows * cols * 3));
 }
+
 //Function to save the image
 //Copied from the website. 
 void save_image(int Width, int Height, char* fname,unsigned char* pixels,long *saveTime) {
 	FILE *fp;
 	const int maxVal=255;
 	clock_t endTime, startTime = clock();
+
 	if(verbose)printf("Saving image %s: %d x %d\n", fname,Width,Height);
 	fp = fopen(fname,"wb");
 	if(!fp){
@@ -444,6 +446,7 @@ void save_image(int Width, int Height, char* fname,unsigned char* pixels,long *s
 	fprintf(fp, "P6\n%d %d\n%d\n",Width,Height,maxVal);
 	fwrite(pixels,3,Width*Height,fp);
 	fclose(fp);
+	
 	endTime = clock();
 	*saveTime = (endTime - startTime);
 }
@@ -901,13 +904,28 @@ double computeTToSphere(Matrix *ray,Matrix *origin,sphere *s,double minimum){
 }
 
 
-void pack(int *arr, int start, int end){
+/**
+ * Waits to unlock the rendering information array.
+ * Then writes the starting and ending row to the array, and locks it
+ * start is the starting row, inclusive.
+ * end is the ending row, not inclusive.
+ * */
+void pack(volatile int *arr, int start, int end){
+	while(arr[2] != 0); /*Wait until the previous helper thread unlocks the array*/
 	arr[0] = start;
 	arr[1] = end;
+	arr[2] = 1;  /*Lock the array*/
 }
-void unpack(int *arr, int *start,int *end){
+/*
+ * Reads the rendering information from the array, then unlocks it
+ * so that the dispatch thread can launch another thread.
+ * 
+ * start is a pointer to write the starting row to.
+ * end is a pointer to write the ending row to.*/
+void unpack(volatile int *arr, int *start,int *end){
 	*start = arr[0];
 	*end = arr[1];
+	arr[2] = 0; /*Unlock the array*/
 }
 /**This method is used to handle the raytracing for a particular portion of the scene.*/
 void *computePixelThread(void *range){
@@ -1023,13 +1041,21 @@ void computePixels2(int threadCount,long *renderTime){
 	 */
 
 	pthread_t threads[MAX_THREADS];
-	int range[2];
+
+	/*Use a 3 element array to pass info to the helper threads.*/
+	/*The first two elements store the starting and ending row (end not inclusive) to render.
+	 *the last element is a lock. We lock the array, and the helper thread unlocks it
+	 *after it has finished reading*/
+	volatile int range[3];
+	range[2] = 0;
+
 	/*The work will be divided equally among the main thread (the currently active ones)
 	 *and the helper threads.*/
 	/*The helper threads will handle lower slices of rows of the image.*/
 	for(thread = 1;thread < threadCount;++thread){
 		rowStart = (thread * rowHeight) + offset;
 		rowEnd = rowStart + rowHeight;
+
 	 	pack(range,rowStart,rowEnd);
 		
 		//Create a thread to handle the workload
@@ -1120,6 +1146,7 @@ int main(int argc,char **argv){
 	if(verbose)printParsedFile(filename);
 	makeCubeMatricies();
 	createImageArray();
+	
 	computePixels2(numThreads,&renderTime);
 	//Freeing the lists of lights and spheres. 
 	freeLists();

@@ -3,7 +3,7 @@ LEFT -1.00
 RIGHT 1.00
 BOTTOM -1
 TOP 1
-RES 500 500
+RES 2000 2000
 # sp	  x y  z sX sY sZ r g  b ka kd ks kr n
 # cube x y z sX sY sZ
 CUBE 0 0 -14 1.0 1.0 1.0 0.5 -0.0 1 1 1 1 1 1 1 25
