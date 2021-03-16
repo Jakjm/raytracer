@@ -915,8 +915,8 @@ void *computePixelThread(void *range){
 	int rowStart, rowEnd;
 	unpack(range,&rowStart,&rowEnd);
 	/*The location of the pixel at row 0, column 0 in camera coordinates*/
-	double zeroX = ((left * cols) * 0.5) + 0.5;
-	double zeroY = ((bottom * rows) * 0.5) + 0.5;
+	double zeroX = (-cols * 0.5) + 0.5;
+	double zeroY = (-rows * 0.5) + 0.5;
 
 	double planeX = (right - left) / cols;
 	double planeY = -((top - bottom) / rows);
