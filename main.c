@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <math.h>
+#include <MagickWand/MagickWand.h>
 #include "matrix2.h"
 
 //@Author Jordan Malek
@@ -47,7 +48,7 @@ double r, g, b;
 //Ambient light
 double aR, aG, aB;
 char *outputFile;
-unsigned char *byteBuffer;
+char *byteBuffer;
 
 typedef struct cube {
 	double posX, posY, posZ;
@@ -427,12 +428,12 @@ int convertIntColor(double red, double green, double blue){
 
 //Function to create the image array for the ray tracer. 
 void createImageArray(){
-	byteBuffer = malloc(sizeof(unsigned char) * (rows * cols * 3));
+	byteBuffer = malloc(sizeof(char) * (rows * cols * 3));
 }
 
 //Function to save the image
 //Copied from the website. 
-void save_image(int Width, int Height, char* fname,unsigned char* pixels,long *saveTime) {
+void save_image(int Width, int Height, char* fname,char* pixels,long *saveTime) {
 	FILE *fp;
 	const int maxVal=255;
 	clock_t endTime, startTime = clock();
@@ -950,7 +951,7 @@ void *computePixelThread(void *range){
 	double cR, cG, cB;
 	double antiX, antiY;
 	double antiCoefficient = 1.0 / 9.0;
-	unsigned char *buffer = byteBuffer + (rowStart * cols * 3);
+	char *buffer = byteBuffer + (rowStart * cols * 3);
 	placePoint4(&eye,0,0,0);
 	placeVec4(&ray,0,0,0);
 
@@ -1097,6 +1098,30 @@ void freeLists(){
 	}
 	free(cubeMatricies);
 }
+/*Try to save image...*/
+void saveToPNG(char* filename,int width, int height, char *array){
+	MagickWandGenesis();
+	MagickWand *wand = NewMagickWand();
+	
+	MagickBooleanType result = MagickConstituteImage(wand,width,height,"RGB",CharPixel,array);
+	if(result == MagickFalse){
+		ExceptionType error_type;
+		char *error = MagickGetException(wand,&error_type);
+		printf("Error: %s \n",error);
+	}
+	else{
+		/*Change filename extension to .png.*/
+		int length = strlen(filename);
+		if(length >= 4){
+			filename[length-4] = '.';
+			filename[length-3] = 'p';
+			filename[length-2] = 'n';
+			filename[length-1] = 'g';
+		}
+		MagickWriteImage(wand,filename);
+	}
+	MagickWandTerminus();
+}
 //Main function of the program. 
 int main(int argc,char **argv){
 	char **endArgs = argv + argc;
@@ -1113,10 +1138,11 @@ int main(int argc,char **argv){
 	++argv;
 	while(argv < endArgs){
 		arg = *argv;
-		/**If argument matches filename*/
+		/*Flag for verbose output*/
 		if(strcmp(arg,"-v") == 0){
 			verbose = 1;
 		}
+		/*Flag for selecting number of threads*/
 		else if(sscanf(arg,"-t%d",&numThreads) == 1){
 			/**Verify that the number of requested threads is valid...*/
 			if(numThreads <= 0 || numThreads > MAX_THREADS){
@@ -1124,16 +1150,17 @@ int main(int argc,char **argv){
 				return 1;
 			}
 		}
+		/*Flag for antialiasing*/
 		else if(strcmp(arg,"-aa") == 0){
 			antialias = 1;
 		}
+		/*Otherwise, attempt to read file from argument*/
 		else if(filename == NULL){
-			filename = arg;
-			/**Check if the argument is a correct filename.*/
-			int result = parseFile(filename,&parseTime);
-			if(result == -1){
-				fprintf(stderr,"Parsing the file failed.\n::Please ensure you have provided a valid txt file in the specified format.\n");
-				return 1;
+			/**Check if the argument is a correctly formmated input file.*/
+			int result = parseFile(arg,&parseTime);
+			if(result != -1){
+				/*If so, we're done*/
+				filename = arg;
 			}
 		}
 		++argv;
@@ -1161,7 +1188,8 @@ int main(int argc,char **argv){
 		printf("Rendering: %.3lf ms\n",renderTime * (1000.0 / CLOCKS_PER_SEC));
 		printf("Save time: %.3lf ms\n",saveTime * (1000.0 / CLOCKS_PER_SEC));
 	}
-	
+	/*Output to png file*/
+	saveToPNG(outputFile,cols,rows,byteBuffer);
 	//Freeing the remaining used resources. 
 	free(byteBuffer);
 	free(outputFile);
